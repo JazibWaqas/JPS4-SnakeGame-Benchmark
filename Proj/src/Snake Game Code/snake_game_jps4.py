@@ -200,15 +200,32 @@ STEP_RIGHT = lambda pos: (pos[0], pos[1] + 1)
 STEP_UP = lambda pos: (pos[0] - 1, pos[1])
 STEP_DOWN = lambda pos: (pos[0] + 1, pos[1])
 
-CELL_WIDTH = 32
-win_width = 20 * CELL_WIDTH
-win_height = 20 * CELL_WIDTH
-GRID_PX = win_height
-HUD_PX = 36
-CANVAS_HEIGHT = GRID_PX + HUD_PX
-TOP_BAR_H = 168
-WINDOW_HEIGHT = TOP_BAR_H + CANVAS_HEIGHT
-WINDOW_SIZE = f"{win_width}x{WINDOW_HEIGHT}"
+GRID_N = 20
+HUD_MIN = 28
+
+
+def compute_game_layout(cv) -> dict:
+    cv.update_idletasks()
+    W = max(cv.winfo_width(), 1)
+    H = max(cv.winfo_height(), 1)
+    hud_px = max(HUD_MIN, min(64, H // 11))
+    avail_h = max(H - hud_px, hud_px + 10)
+    cell = min(W // GRID_N, avail_h // GRID_N)
+    cell = max(5, cell)
+    grid_px = GRID_N * cell
+    ox = (W - grid_px) // 2
+    oy = (avail_h - grid_px) // 2
+    hud_y0 = oy + grid_px
+    return {
+        "cell": cell,
+        "grid_px": grid_px,
+        "hud_px": hud_px,
+        "ox": ox,
+        "oy": oy,
+        "W": W,
+        "H": H,
+        "hud_y0": hud_y0,
+    }
 
 # Default snake spawn in a free area
 default_location = [(2,2), (2,3)]
@@ -567,63 +584,61 @@ class Snake:
             self.update_canvas()
 
     def update_canvas(self):
-        canvas.delete('all')
-        canvas.config(width=win_width, height=CANVAS_HEIGHT)
+        L = compute_game_layout(canvas)
+        cw = L["cell"]
+        ox, oy = L["ox"], L["oy"]
+        canvas.delete("all")
         if self.compare_layers:
-            inset_seq = (2, 6, 11)
             for idx, layer in enumerate(self.compare_layers):
-                ins = inset_seq[idx] if idx < len(inset_seq) else 4 + idx * 5
+                ins = max(1, min(14, cw // 4 + idx * 2))
                 for row, col in layer["cells"]:
                     if not (0 <= row < self.board.shape[0] and 0 <= col < self.board.shape[1]):
                         continue
-                    x_val = col * CELL_WIDTH
-                    y_val = row * CELL_WIDTH
-                    canvas.create_rectangle(
-                        x_val + ins,
-                        y_val + ins,
-                        x_val + CELL_WIDTH - ins,
-                        y_val + CELL_WIDTH - ins,
-                        fill=layer["fill"],
-                        outline="",
-                    )
+                    x0 = ox + col * cw + ins
+                    y0 = oy + row * cw + ins
+                    x1 = ox + (col + 1) * cw - ins
+                    y1 = oy + (row + 1) * cw - ins
+                    canvas.create_rectangle(x0, y0, x1, y1, fill=layer["fill"], outline="")
         elif self.route:
             for row, col in self.route:
                 if not (0 <= row < self.board.shape[0] and 0 <= col < self.board.shape[1]):
                     continue
-                x_val = col * CELL_WIDTH
-                y_val = row * CELL_WIDTH
+                x0 = ox + col * cw
+                y0 = oy + row * cw
                 canvas.create_rectangle(
-                    x_val,
-                    y_val,
-                    x_val + CELL_WIDTH,
-                    y_val + CELL_WIDTH,
+                    x0,
+                    y0,
+                    x0 + cw,
+                    y0 + cw,
                     fill="#7eb8e8",
                     outline="#3a3a3a",
                 )
         for col in range(self.board.shape[1]):
             for row in range(self.board.shape[0]):
-                x_val = col * CELL_WIDTH
-                y_val = row * CELL_WIDTH
+                x0 = ox + col * cw
+                y0 = oy + row * cw
                 cell_val = self.board[row, col]
                 color = COLORS[cell_val]
                 canvas.create_rectangle(
-                    x_val, y_val, x_val + CELL_WIDTH, y_val + CELL_WIDTH,
-                    fill=color, outline="#3a3a3a",
+                    x0, y0, x0 + cw, y0 + cw, fill=color, outline="#3a3a3a"
                 )
         alg = {"dijkstra": "Dijkstra", "astar": "A*", "jps4": "JPS4"}[current_path_mode]
-        canvas.create_rectangle(0, GRID_PX, win_width, CANVAS_HEIGHT, fill="#252525", outline="")
+        canvas.create_rectangle(
+            0, L["hud_y0"], L["W"], L["H"], fill="#252525", outline=""
+        )
         hud = f"Score {self.score}   |   Playing: {alg}"
         if self.compare_layers:
-            hud += "   |   Compare mode: red/green/blue = Dijkstra / A* / JPS4"
+            hud += "   |   Compare: red / green / blue = Dijkstra / A* / JPS4"
         else:
-            hud += "   |   Cyan = planned route (current algo)"
+            hud += "   |   Cyan = planned route"
+        fs = max(9, min(18, cw // 2))
         canvas.create_text(
-            14,
-            GRID_PX + HUD_PX // 2,
+            12,
+            L["hud_y0"] + L["hud_px"] // 2,
             anchor="w",
             text=hud,
             fill="#e8e8e8",
-            font=("Segoe UI", 11),
+            font=("Segoe UI", fs),
         )
         canvas.update()
         sync_metrics()
@@ -634,11 +649,15 @@ class Snake:
         if play_sound:
             winsound.PlaySound(f"{path_dir}Assets/price.wav", winsound.SND_ASYNC)
         canvas.delete("all")
+        L = compute_game_layout(canvas)
+        cx = L["ox"] + L["grid_px"] // 2
+        cy = L["oy"] + L["grid_px"] // 2
+        gfs = max(16, min(36, L["cell"] * 2))
         canvas.create_text(
-            win_width // 2,
-            GRID_PX // 2,
+            cx,
+            cy,
             text=f"Game Over\nScore: {self.score}",
-            font=("Arial", 28),
+            font=("Arial", gfs),
             fill="red",
         )
         canvas.update()
@@ -649,7 +668,34 @@ class Snake:
 
 banana = Tk()
 banana.title("Snake pathfinding | JPS4")
-banana.resizable(False, False)
+_scr_w = banana.winfo_screenwidth()
+_scr_h = banana.winfo_screenheight()
+banana.geometry(f"{max(520, int(_scr_w * 0.62))}x{max(580, int(_scr_h * 0.72))}")
+banana.minsize(400, 460)
+banana.maxsize(_scr_w, _scr_h)
+banana.resizable(True, True)
+banana.configure(bg="#2b2b2b")
+
+
+def toggle_fullscreen(event=None):
+    fs = not bool(banana.attributes("-fullscreen"))
+    banana.attributes("-fullscreen", fs)
+    return "break"
+
+
+def exit_fullscreen(event=None):
+    if bool(banana.attributes("-fullscreen")):
+        banana.attributes("-fullscreen", False)
+    return "break"
+
+
+menubar = Menu(banana)
+view_menu = Menu(menubar, tearoff=0)
+view_menu.add_command(label="Toggle fullscreen", accelerator="F11", command=toggle_fullscreen)
+menubar.add_cascade(label="View", menu=view_menu)
+banana.config(menu=menubar)
+banana.bind("<F11>", toggle_fullscreen)
+banana.bind("<Escape>", exit_fullscreen)
 
 metrics_var = StringVar(
     value="Last search: —   |   Expansions: —   |   Route cells: —"
@@ -751,7 +797,9 @@ Button(
     command=on_resume_click,
 ).pack(side=LEFT)
 
-Label(
+wrap_labels = []
+
+lbl_compare = Label(
     top_bar,
     textvariable=compare_var,
     bg="#2b2b2b",
@@ -759,8 +807,10 @@ Label(
     font=("Consolas", 8),
     justify=LEFT,
     anchor=W,
-    wraplength=win_width - 20,
-).pack(anchor=W, pady=(6, 0))
+    wraplength=700,
+)
+lbl_compare.pack(anchor=W, pady=(6, 0))
+wrap_labels.append(lbl_compare)
 
 Label(
     top_bar,
@@ -771,7 +821,7 @@ Label(
     justify=LEFT,
     anchor=W,
 ).pack(anchor=W, pady=(8, 0))
-Label(
+lbl_sess = Label(
     top_bar,
     textvariable=session_var,
     bg="#2b2b2b",
@@ -779,9 +829,12 @@ Label(
     font=("Consolas", 8),
     justify=LEFT,
     anchor=W,
-    wraplength=win_width - 20,
-).pack(anchor=W, pady=(4, 0))
-Label(
+    wraplength=700,
+)
+lbl_sess.pack(anchor=W, pady=(4, 0))
+wrap_labels.append(lbl_sess)
+
+lbl_leg = Label(
     top_bar,
     text="Last search = one path to apple. Expansions = heap pops. Route cells = grid squares in that path. Session = sums while playing; switch algorithms to compare.",
     bg="#2b2b2b",
@@ -789,18 +842,48 @@ Label(
     font=("Segoe UI", 8),
     justify=LEFT,
     anchor=W,
-    wraplength=win_width - 20,
-).pack(anchor=W, pady=(2, 0))
-
-canvas = Canvas(
-    banana,
-    bg="#141414",
-    width=win_width,
-    height=CANVAS_HEIGHT,
-    highlightthickness=0,
+    wraplength=700,
 )
+lbl_leg.pack(anchor=W, pady=(2, 0))
+wrap_labels.append(lbl_leg)
+
+game_body = Frame(banana, bg="#141414")
+canvas = Canvas(game_body, bg="#141414", highlightthickness=0)
+canvas.pack(fill=BOTH, expand=True)
+
+_canvas_after = None
+
+
+def update_wraplengths(event=None):
+    banana.update_idletasks()
+    w = max(banana.winfo_width() - 28, 220)
+    for lb in wrap_labels:
+        lb.config(wraplength=w)
+
+
+def on_canvas_configure(event):
+    global _canvas_after
+    if event.widget != canvas:
+        return
+    if event.width < 24 or event.height < 24:
+        return
+    if _canvas_after is not None:
+        banana.after_cancel(_canvas_after)
+
+    def tick():
+        global _canvas_after
+        _canvas_after = None
+        update_wraplengths()
+        if main_snake is not None:
+            main_snake.update_canvas()
+
+    _canvas_after = banana.after(48, tick)
+
+
+canvas.bind("<Configure>", on_canvas_configure)
+
 top_bar.pack_forget()
-canvas.pack()
+game_body.pack_forget()
 
 
 def refresh_algo_buttons():
@@ -850,75 +933,120 @@ def on_path_key(mode: str):
 refresh_algo_buttons()
 
 
+def photo_fit_inside(src: PhotoImage, max_w: int, max_h: int) -> PhotoImage:
+    img = src
+    for _ in range(40):
+        if img.width() <= max_w and img.height() <= max_h:
+            break
+        img = img.subsample(2)
+    for _ in range(20):
+        if img.width() * 2 > max_w or img.height() * 2 > max_h:
+            break
+        img = img.zoom(2)
+    return img
+
+
 def start_menu():
-    """Display a start menu with snake_game.png as a full-window background and two difficulty buttons."""
-    canvas.pack_forget()
+    """Splash: fills window; image and buttons refit on resize."""
+    game_body.pack_forget()
     top_bar.pack_forget()
 
-    banana.geometry(WINDOW_SIZE)
+    sw = banana.winfo_screenwidth()
+    sh = banana.winfo_screenheight()
+    banana.geometry(f"{max(480, int(sw * 0.52))}x{max(520, int(sh * 0.62))}")
+    banana.minsize(380, 420)
+    banana.maxsize(sw, sh)
 
-    menu_frame = Frame(banana, width=win_width, height=WINDOW_HEIGHT)
-    menu_frame.pack(fill="both", expand=True)
+    menu_frame = Frame(banana, bg="#1e1e1e")
+    menu_frame.pack(fill=BOTH, expand=True)
 
-    # Attempt to load the background image
+    bg_src = None
     try:
-        bg_image_original = PhotoImage(file=f"{path_dir}Assets/snake_game.png")
-        img_width = bg_image_original.width()
-        img_height = bg_image_original.height()
-
-        # Compute how many times we can scale the image (integer factor only).
-        scale_factor_x = win_width // img_width  if img_width  else 1
-        scale_factor_y = WINDOW_HEIGHT // img_height if img_height else 1
-        # Pick the smaller of the two to ensure we don't exceed window boundaries.
-        scale_factor = min(scale_factor_x, scale_factor_y)
-        
-        # If scale_factor is >= 1, we enlarge using .zoom().
-        # If scale_factor is 0, we do a sub-sample using an integer factor (for smaller images).
-        if scale_factor >= 1:
-            bg_image = bg_image_original.zoom(scale_factor)
-        else:
-            # We'll invert the factor for sub-sampling (avoiding division by zero).
-            # e.g., if scale_factor is 0, use at least 2 or more as sub-sample factor.
-            subsample_factor = max(2, (img_width // win_width) + 1, (img_height // WINDOW_HEIGHT) + 1)
-            bg_image = bg_image_original.subsample(subsample_factor)
+        bg_src = PhotoImage(file=f"{path_dir}Assets/snake_game.png")
     except Exception as e:
         print("Could not load 'snake_game.png':", e)
-        bg_image = None
 
-    # If the image loaded, create a label to hold it as a background
-    if bg_image:
-        bg_label = Label(menu_frame, image=bg_image)
-        bg_label.image = bg_image  # Keep a reference to avoid garbage collection
-        bg_label.place(x=0, y=0, relwidth=1, relheight=1)  # Fill the frame
-    else:
-        # Fallback color if no image is available
-        menu_frame.config(bg="lightgreen")
+    menu_canvas = Canvas(menu_frame, bg="#1e1e1e", highlightthickness=0)
+    menu_canvas.pack(fill=BOTH, expand=True)
 
-    # Functions for difficulty choices
+    splash_job = None
+    splash_wh = [0, 0]
+
+    def redraw_splash():
+        nonlocal splash_job
+        splash_job = None
+        menu_canvas.delete("all")
+        menu_canvas.update_idletasks()
+        W = max(menu_canvas.winfo_width(), 2)
+        H = max(menu_canvas.winfo_height(), 2)
+        if W < 16 or H < 16:
+            return
+        if bg_src:
+            fit = photo_fit_inside(bg_src, W - 8, H - 100)
+            menu_canvas.create_image(W // 2, H // 2, image=fit, anchor="center")
+            menu_canvas._splash_img = fit
+        else:
+            menu_canvas.create_text(
+                W // 2,
+                H // 2,
+                text="Snake pathfinding",
+                fill="#e0e0e0",
+                font=("Segoe UI", max(14, H // 28)),
+            )
+
+    def schedule_splash(event=None):
+        nonlocal splash_job
+        menu_canvas.update_idletasks()
+        W = menu_canvas.winfo_width()
+        H = menu_canvas.winfo_height()
+        if W == splash_wh[0] and H == splash_wh[1]:
+            return
+        splash_wh[0], splash_wh[1] = W, H
+        if splash_job is not None:
+            banana.after_cancel(splash_job)
+        splash_job = banana.after(50, redraw_splash)
+
+    menu_canvas.bind("<Configure>", schedule_splash)
+
     def choose_easy():
         menu_frame.destroy()
-        banana.geometry(WINDOW_SIZE)
+        banana.minsize(400, 460)
+        banana.maxsize(sw, sh)
         top_bar.pack(side=TOP, fill=X)
-        canvas.pack()
+        game_body.pack(fill=BOTH, expand=True)
+        update_wraplengths()
         on_difficulty_chosen(EASY_BOARD_LAYOUT)
 
     def choose_hard():
         menu_frame.destroy()
-        banana.geometry(WINDOW_SIZE)
+        banana.minsize(400, 460)
+        banana.maxsize(sw, sh)
         top_bar.pack(side=TOP, fill=X)
-        canvas.pack()
+        game_body.pack(fill=BOTH, expand=True)
+        update_wraplengths()
         on_difficulty_chosen(HARD_BOARD_LAYOUT)
 
-    # Create buttons on top of the background
-    easy_button = Button(menu_frame, text="Easy", font=("Arial", 16, "bold"), 
-                         fg="white", bg="green", command=choose_easy)
-    hard_button = Button(menu_frame, text="Hard", font=("Arial", 16, "bold"), 
-                         fg="white", bg="red", command=choose_hard)
-
-    # Place buttons at positions over the background
-    # Adjust these relx/rely values to position them exactly where you want
-    easy_button.place(relx=0.4, rely=0.9, anchor="center")
-    hard_button.place(relx=0.6, rely=0.9, anchor="center")
+    easy_button = Button(
+        menu_frame,
+        text="Easy",
+        font=("Arial", 16, "bold"),
+        fg="white",
+        bg="green",
+        command=choose_easy,
+    )
+    hard_button = Button(
+        menu_frame,
+        text="Hard",
+        font=("Arial", 16, "bold"),
+        fg="white",
+        bg="red",
+        command=choose_hard,
+    )
+    easy_button.place(relx=0.38, rely=0.92, anchor="center")
+    hard_button.place(relx=0.62, rely=0.92, anchor="center")
+    easy_button.lift(menu_canvas)
+    hard_button.lift(menu_canvas)
+    banana.after(80, redraw_splash)
 
 
 def on_difficulty_chosen(board_layout):
@@ -928,7 +1056,6 @@ def on_difficulty_chosen(board_layout):
         "astar": {"n": 0, "ms": 0.0, "exp": 0, "steps": 0},
         "jps4": {"n": 0, "ms": 0.0, "exp": 0, "steps": 0},
     }
-    banana.geometry(WINDOW_SIZE)
     current_path_mode = "jps4"
     on_path_key("jps4")
     BOARD = np.array(board_layout)
