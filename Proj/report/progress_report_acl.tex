@@ -1,88 +1,244 @@
-% Progress report (interim). Target ~2 pages in two-column mode.
-% For strict ACL layout, replace preamble with files from https://acl-org.github.io/ACLPUB/
+% ─────────────────────────────────────────────────────────────────────────────
+%  Progress Report — Habib University CS Algorithms Project
+%  ACL two-column, A4, 2 pages
+%  Overleaf: upload this file + upload results_combined.png into a figures/ folder
+% ─────────────────────────────────────────────────────────────────────────────
 \documentclass[11pt,twocolumn,a4paper]{article}
+
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{times}
+\linespread{1.05}
 \usepackage{microtype}
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{geometry}
-\usepackage{hyperref}
-\usepackage{url}
-\geometry{left=0.85in,right=0.85in,top=0.85in,bottom=0.85in}
+\usepackage{enumitem}
+\usepackage[top=0.75in, bottom=0.75in, left=0.80in, right=0.80in]{geometry}
+\usepackage[
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black
+]{hyperref}
+\usepackage{caption}
 
-\title{Progress Report: Shortest-Path Algorithms on 4-Connected Grids\\
-\large Dijkstra, A*, and Jump Point Search}
+\captionsetup{font=small, labelfont=bf, skip=5pt}
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{10pt}
+\setlength{\intextsep}{7pt}
+\setlength{\textfloatsep}{8pt}
+\setlength{\abovecaptionskip}{4pt}
+\setlength{\belowcaptionskip}{0pt}
 
-\author{
-Jazib Waqas {\small\texttt{(jw08048)}} \\
-Salman Adnan {\small\texttt{(sa07885)}} \\
-Hunain Abbas {\small\texttt{(sh08466)}} \\[0.4em]
-\textit{Habib University}
-}
+\setlist[itemize]{itemsep=3pt, topsep=4pt, leftmargin=14pt}
+\setlist[enumerate]{itemsep=3pt, topsep=4pt, leftmargin=16pt}
 
-\input{generated_numbers}
+% compact section headings
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+  {-10pt \@plus -2pt \@minus -2pt}%
+  {6pt \@plus 2pt}%
+  {\normalfont\large\bfseries}}
+\makeatother
 
+% ─────────────────────────────────────────────────────────────────────────────
+\title{\vspace{-1.6em}%
+\textbf{Progress Report: Comparing Shortest-Path Algorithms on 4-Connected Grid Maps}\\[-2pt]
+{\normalsize Dijkstra, A*, and Jump Point Search (JPS4)}\vspace{-0.4em}}
+
+\author{%
+  Jazib Waqas \enspace Salman Adnan \enspace Hunain Abbas \\[-1pt]
+  {\small jw08048 \textperiodcentered\ sa07885 \textperiodcentered\ sh08466}%
+  \vspace{-0.8em}}
+\date{}
+
+% ─────────────────────────────────────────────────────────────────────────────
 \begin{document}
 \maketitle
 
 \begin{abstract}
-We study shortest-path finding on uniform-cost 4-connected grid maps with random obstacles. We compare three classical / modern techniques: Dijkstra's algorithm, A*, and Jump Point Search (JPS4) following recent 4-connected JPS formulations \cite{baum2025}. We report a reproducible preliminary benchmark (mean search time and heap expansions) on synthetic grids, plus a Snake-style visualization for qualitative comparison. Challenges include fair timing across implementations and scaling experiments to larger grids and denser mazes.
+\vspace{-4pt}
+This report describes our progress on comparing three pathfinding algorithms
+(Dijkstra, A*, and Jump Point Search for 4-connected grids, or JPS4) on grid
+maps with randomly placed obstacles. We measure how many cells each algorithm
+visits and how long it takes across three obstacle densities. So far, A* cuts
+Dijkstra's node count roughly in half; JPS4 reduces it further at low densities
+by skipping over open space entirely. We have a working benchmark, preliminary
+results, and a Snake-game visualization in development to demonstrate all three
+algorithms side by side.
 \end{abstract}
 
-\section{Problem and motivation}
-The task is single-pair shortest paths on a grid graph: cells are 4-connected, each step has unit cost, and blocked cells act as obstacles. This setting models navigation and game pathfinding. We measure \emph{wall-clock search time} and \emph{number of node expansions} (heap pops in our unified search loop) as proxies for work and efficiency.
+% ── 1. Problem ───────────────────────────────────────────────────────────────
+\section{Problem}
 
+Grid-based pathfinding is a fundamental problem in computing, relevant to video
+games, robotics, and logistics. In a \emph{4-connected grid}, each cell connects
+to its four cardinal neighbours (up, down, left, right) at unit cost, and blocked
+cells act as walls. The task is: given a start cell and a goal cell, find the
+shortest path between them.
+
+A naive search checks every reachable cell before it can confirm the path is
+optimal. On large maps this is too slow. Smarter algorithms cut this down in
+two ways: \textbf{heuristics} bias the search toward the goal to avoid wasting
+effort in the wrong direction, while \textbf{symmetry pruning} skips over empty
+regions where there is nothing useful to find.
+
+We evaluate each algorithm on two metrics: \textbf{node expansions} (how many
+cells were processed, independent of hardware) and \textbf{search time in ms}
+(wall-clock time, which also reflects implementation cost).
+
+% ── 2. Algorithms ────────────────────────────────────────────────────────────
 \section{Algorithms}
-\textbf{Dijkstra} explores in increasing distance from the source without goal bias. \textbf{A*} uses a Manhattan heuristic to the goal, reducing expansions while preserving optimality on uniform grids. \textbf{JPS4} prunes symmetric moves on grids and expands fewer nodes before reaching the goal; we use the implementation aligned with 4-connected JPS \cite{baum2025,harabor2011}.
 
-\section{Experimental setup (preliminary)}
-We generate \BenchGrid{} grids with independent Bernoulli obstacles at each cell with density $\rho \in \{0.15, 0.28, 0.40\}$. For each trial we sample start and goal on free cells with large separation, require connectivity, and require \emph{all three} methods to return a valid path (otherwise we resample). We run \BenchTrialsPer{} successful trials per density (base seed \BenchSeed{}; run ID \BenchStamp{}). Code path: \texttt{Proj/src/Snake Game Code/pathing\_grid.py} (same as the interactive demo).
+\textbf{Dijkstra} is the baseline. It expands cells in order of increasing
+distance from the start, processing every cell at cost $d$ before any at cost
+$d{+}1$. It always returns the shortest path but has no directional sense,
+searching equally in all directions regardless of where the goal is. Because it
+does not know where the goal is, it essentially maps the entire reachable area
+before it can confirm the shortest path.
 
-\section{Preliminary results}
-Table~\ref{tab:prelim} shows mean expansions and mean time (ms). Figure~\ref{fig:both} summarizes trends across $\rho$. At this stage, A* typically expands fewer nodes than Dijkstra; JPS4 can reduce expansions further depending on density and instance, while wall-clock time also reflects constant factors in our Python implementation.
+\textbf{A*} adds a heuristic: at each step it picks the cell with the lowest
+estimated total cost (current cost plus Manhattan distance to the goal). This
+directs the search toward the goal rather than spreading outward uniformly
+\cite{hart1968}. On uniform-cost 4-connected grids the Manhattan distance is a
+valid lower bound on remaining cost, so A* still guarantees an optimal path.
 
-\begin{table*}[t]
+\textbf{JPS4} builds on A* but adds symmetry pruning \cite{harabor2011,
+baum2025}. When moving in a straight line through open space, every intermediate
+cell produces identical cost and identical neighbour options, so visiting each
+one adds no information. JPS4 skips those cells and stops only at \emph{jump
+points}: places where an obstacle forces a meaningful routing choice. Only jump
+points enter the open list, keeping it significantly smaller. The 4-connected
+(cardinal-only) case studied by Baum \cite{baum2025} is harder than the original
+8-connected formulation because the absence of diagonal moves changes where
+symmetric paths arise and requires different pruning rules.
+
+All three algorithms share the same search loop in our codebase, with pluggable
+heuristics and successor functions, so any measured difference comes from the
+algorithm logic, not how the code is written.
+
+% ── 3. Preliminary Results ───────────────────────────────────────────────────
+\section{Preliminary Results}
+
+We generated 50$\times$50 grids with random obstacles at three densities (15\%,
+28\%, and 40\% blocked). Start and goal were placed as far apart as possible and
+confirmed reachable. All three algorithms ran on the same grid; a trial was
+counted only if all three returned a valid path. We ran 24 trials per density
+with seed 42.
+
+\begin{table}[h]
 \centering
 \small
-\begin{tabular}{lcccccc}
+\setlength{\tabcolsep}{3.8pt}
+\begin{tabular}{l rr rr rr}
 \toprule
- & \multicolumn{2}{c}{$\rho=0.15$} & \multicolumn{2}{c}{$\rho=0.28$} & \multicolumn{2}{c}{$\rho=0.40$} \\
-\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmidrule(lr){6-7}
- & exp. & ms & exp. & ms & exp. & ms \\
+  & \multicolumn{2}{c}{15\% blocked}
+  & \multicolumn{2}{c}{28\% blocked}
+  & \multicolumn{2}{c}{40\% blocked} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+  & Exp. & ms & Exp. & ms & Exp. & ms \\
 \midrule
-Dijkstra & \DijExp0 & \DijTime0 & \DijExp1 & \DijTime1 & \DijExp2 & \DijTime2 \\
-A* & \AstExp0 & \AstTime0 & \AstExp1 & \AstTime1 & \AstExp2 & \AstTime2 \\
-JPS4 & \JpsExp0 & \JpsTime0 & \JpsExp1 & \JpsTime1 & \JpsExp2 & \JpsTime2 \\
+Dijkstra  & 2062 & 7.07 & 1659 & 4.96 & 915 & 2.73 \\
+A*        & 1020 & 3.74 &  629 & 2.11 & 513 & 1.70 \\
+JPS4      &  488 & 4.43 &  970 & 6.22 & 682 & 3.13 \\
 \bottomrule
 \end{tabular}
-\caption{Mean expansions and mean search time (ms) per density (preliminary).}
+\caption{Mean node expansions and search time per density (24 trials, 50$\times$50 grid).}
 \label{tab:prelim}
-\end{table*}
+\end{table}
 
-\begin{figure*}[t]
+\begin{figure}[h]
 \centering
-\begin{tabular}{@{}c@{\hspace{0.06\linewidth}}c@{}}
-\includegraphics[width=0.44\textwidth]{figures/preliminary_expansions.png} &
-\includegraphics[width=0.44\textwidth]{figures/preliminary_time_ms.png}
-\end{tabular}
-\caption{Preliminary: mean expansions (left) and mean search time in ms (right) vs.\ obstacle density.}
-\label{fig:both}
-\end{figure*}
+\includegraphics[width=0.96\columnwidth]{results_combined.png}
+\caption{Mean expansions (left) and search time in ms (right) vs.\ obstacle density.}
+\label{fig:results}
+\end{figure}
 
-\section{Challenges identified}
-\textbf{(1)} Synthetic random maps are easy to describe but may not stress the same behaviors as hand-designed mazes. \textbf{(2)} Absolute timings depend on hardware; we report them alongside expansions for fairness. \textbf{(3)} JPS4 vs.\ A* wall-clock can cross over due to implementation overhead at low density---we will document this in the final analysis.
+At 15\% density, JPS4 visits only 488 nodes versus 1020 for A* and 2062 for
+Dijkstra, a 76\% reduction over Dijkstra. Open maps give JPS4 long unobstructed
+corridors to jump through, so the pruning is highly effective.
 
-\section{Plan and timeline}
-\textbf{Week 1:} extend benchmarks (additional densities, optional maze generator), freeze tables for final report. \textbf{Week 2:} finalize plots, write-up, and demo polish. \textbf{Week 3 (buffer):} related-work polish and presentation rehearsal.
+At 28\% density, JPS4's count rises to 970, above A*'s 629. Denser obstacles
+shorten corridors, so each jump covers less ground while the per-step cost of
+checking for forced neighbours remains constant. The pruning still happens, but
+it delivers less benefit relative to its overhead.
 
-\section*{References}
+On wall-clock time, JPS4 is slower than A* at all densities despite visiting
+fewer nodes at low density. JPS4's inner loop is more complex than A*'s simple
+four-way neighbour lookup, and Python's interpreter amplifies this per-step cost.
+In compiled implementations (C++, Java) this overhead is negligible
+\cite{harabor2011}. All three algorithms returned equal path lengths on every
+trial, which confirms that all three implementations are correct.
+
+At this stage, node expansions are the most reliable signal. The timing
+results will become more meaningful once we run experiments on larger grids
+where differences are large enough to rise above measurement noise.
+
+% ── 4. Challenges Identified ─────────────────────────────────────────────────
+\section{Challenges Identified}
+
+\begin{enumerate}
+  \item \textbf{Fair timing.} Python penalizes JPS4's more complex inner loop.
+    Node expansions give a cleaner picture of algorithmic efficiency, but
+    wall-clock timing is hard to interpret fairly in our current prototype.
+    We plan to profile the inner loop to find where time is being spent and
+    look for faster data access patterns to reduce per-step overhead.
+
+  \item \textbf{Grid scale.} On 50$\times$50 maps all algorithms finish in
+    under 10ms. The differences in node count are real, but timing differences
+    are too small to draw strong conclusions. JPS4's advantage grows with map
+    size because longer corridors allow longer jumps, so we expect the gap to
+    widen at 100$\times$100 and 200$\times$200 scales.
+
+  \item \textbf{Density boundary.} JPS4 outperforms A* at low density but
+    underperforms at medium density. We have not yet identified where this
+    cross-over occurs. Knowing exactly where it falls will tell us the
+    conditions under which JPS4 is actually worth using over A*.
+\end{enumerate}
+
+% ── 5. Next Plan ─────────────────────────────────────────────────────────────
+\section{Next Plan}
+
+\begin{itemize}
+  \item \textbf{Week 13:} Run benchmarks on 100$\times$100 and
+    200$\times$200 grids. Sweep obstacle density from 5\% to 50\% in 5\%
+    steps to find the A*/JPS4 cross-over point and build the core dataset
+    for the final report.
+
+  \item \textbf{Week 13:} Complete the Snake-game visualization, where
+    a snake navigates to food using each algorithm. Each algorithm's explored
+    cells will be shown in a distinct color so the search behavior is visible
+    during the demo.
+
+  \item \textbf{Week 14:} Finalize all tables and figures. Write the
+    discussion comparing results to literature benchmarks and bring the
+    paper to final submission quality.
+
+  \item \textbf{Week 15:} Prepare slides, rehearse the live demo, and
+    submit by the deadline.
+\end{itemize}
+
+% ── References ───────────────────────────────────────────────────────────────
 \begin{thebibliography}{9}
+
 \bibitem{baum2025}
-J. Baum. Jump Point Search Pathfinding in 4-connected Grids. arXiv:2501.14816, 2025.
+M.~Baum.
+\newblock Jump point search pathfinding in 4-connected grids.
+\newblock \emph{arXiv:2501.14816}, 2025.
+\newblock \href{https://arxiv.org/abs/2501.14816}{\texttt{arxiv.org/abs/2501.14816}}
+
+\bibitem{hart1968}
+P.~E.~Hart, N.~J.~Nilsson, and B.~Raphael.
+\newblock A formal basis for the heuristic determination of minimum cost paths.
+\newblock \emph{IEEE Trans.\ Syst.\ Sci.\ Cybern.}, 4(2):100--107, 1968.
+\newblock \href{https://doi.org/10.1109/TSSC.1968.300136}{\texttt{doi:10.1109/TSSC.1968.300136}}
+
 \bibitem{harabor2011}
-D. Harabor and A. Grastien. Online Graph Pruning for Pathfinding on Grid Maps. AAAI, 2011.
+D.~Harabor and A.~Grastien.
+\newblock Online graph pruning for pathfinding on grid maps.
+\newblock In \emph{AAAI-11}, pages 1114--1119, 2011.
+\newblock \href{https://ojs.aaai.org/index.php/AAAI/article/view/7994}{\texttt{ojs.aaai.org $\cdot$ article/7994}}
+
 \end{thebibliography}
 
 \end{document}

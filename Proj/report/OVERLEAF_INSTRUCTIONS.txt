@@ -1,0 +1,21 @@
+# How to Upload and Compile on Overleaf
+
+## Step 1 — Files to upload
+Upload ALL of these to Overleaf (drag and drop into the sidebar):
+
+  report/progress_report_acl.tex   ← the main file
+  report/figures/results_combined.png
+
+That's it. Only two files needed.
+
+## Step 2 — Set main document
+In Overleaf, click the menu (top left) and set the "Main document" to:
+  progress_report_acl.tex
+
+## Step 3 — Compile
+Click the green "Recompile" button.
+Use compiler: pdflatex (the default).
+
+## No extra packages needed.
+All packages used (times, booktabs, amsmath, microtype, graphicx,
+xcolor, hyperref, geometry, caption) are pre-installed on Overleaf.

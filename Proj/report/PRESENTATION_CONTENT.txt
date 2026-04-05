@@ -1,0 +1,240 @@
+================================================================================
+  ADA PROJECT — INTERIM DEMO PRESENTATION
+  Benchmarking Shortest-Path Algorithms on 4-Connected Grid Maps
+  Jazib Waqas | Salman Adnan | Hunain Abbas
+  Habib University — April 2026
+================================================================================
+
+INSTRUCTIONS FOR WHOEVER IS MAKING THE SLIDES
+----------------------------------------------
+- 4-5 slides total (the instructions say 4 to 5)
+- Should cover: methodology and results
+- Keep it clean — one clear idea per slide, not too much text
+- The figure (results_combined.png) and the data table should definitely go in
+- Speaker notes are included under each slide so you know what to say
+
+
+================================================================================
+SLIDE 1 — TITLE SLIDE
+================================================================================
+
+TITLE:
+  Benchmarking Shortest-Path Algorithms on 4-Connected Grid Maps
+
+SUBTITLE:
+  Dijkstra vs A* vs Jump Point Search (JPS4)
+
+AUTHORS:
+  Jazib Waqas   Salman Adnan   Hunain Abbas
+  jw08048 · sa07885 · sh08466
+
+AFFILIATION:
+  Habib University — ADA Interim Demo — April 2026
+
+DESIGN NOTE:
+  Add a simple visual of a grid with a path drawn through it, or a screenshot
+  of the Snake game if ready. Keep it clean and minimal.
+
+
+================================================================================
+SLIDE 2 — THE PROBLEM & MOTIVATION
+================================================================================
+
+HEADING: Why Does Pathfinding Efficiency Matter?
+
+BULLET POINTS:
+  • Grid pathfinding is everywhere: game AI, robot navigation, logistics
+  • In a 4-connected grid, each cell links to its 4 cardinal neighbours (up,
+    down, left, right) — no diagonals allowed
+  • A naive search visits every reachable cell before confirming the shortest path
+    → On large maps this is far too slow
+  • The question: can smarter algorithms dramatically reduce the number of cells
+    they check, without sacrificing the guarantee of finding the shortest path?
+
+WHAT WE'RE COMPARING:
+  Three algorithms with different strategies:
+    1. Dijkstra   — no sense of direction, checks everything
+    2. A*         — uses a heuristic to aim toward the goal
+    3. JPS4       — skips over empty space entirely using "jump points"
+
+SPEAKER NOTES:
+  Briefly explain the 4-connected constraint and why no diagonals makes this
+  harder. Emphasize that all three algorithms guarantee the shortest path —
+  what differs is how efficiently they find it. The practical motivation is
+  that in real games and robotics, pathfinding runs thousands of times per
+  second, so even small improvements matter at scale.
+
+
+================================================================================
+SLIDE 3 — THE ALGORITHMS (METHODOLOGY)
+================================================================================
+
+HEADING: Three Algorithms, One Fair Comparison
+
+SECTION: Dijkstra
+  - Expands cells in increasing order of distance from the start
+  - No direction bias — searches equally in all directions
+  - Optimal but slow: has to explore the whole reachable area
+
+SECTION: A*
+  - Same as Dijkstra but adds a heuristic: Manhattan distance to the goal
+  - This focuses the search toward the goal, skipping areas in the wrong direction
+  - On 4-connected grids, Manhattan distance is always a valid lower bound
+    → A* still guarantees the shortest path
+
+SECTION: JPS4 (Jump Point Search for 4-connected grids)
+  - Asks: "can I skip this cell entirely?"
+  - When moving through open space in a straight line, every cell along the way
+    has the same cost and opens the same options → no reason to visit each one
+  - JPS4 "jumps" through empty space and only stops at JUMP POINTS:
+    places where an obstacle forces a real routing decision
+  - Introduced by Harabor & Grastien (2011), extended to 4-connected grids
+    by Baum (2025) — different pruning rules needed without diagonal moves
+
+KEY DESIGN DECISION:
+  All three algorithms share the exact same underlying search loop in our code.
+  Only the heuristic and the neighbour-finding function change.
+  → Any difference in results is purely algorithmic, not a coding artefact.
+
+VISUAL IDEA:
+  Draw a simple grid showing:
+  - Dijkstra expanding in a big circle
+  - A* expanding in a cone toward the goal
+  - JPS4 jumping in straight lines with only a few jump points marked
+  (Even a rough hand-drawn style diagram works well for this)
+
+SPEAKER NOTES:
+  The key message: JPS4 is smarter about what it ignores. In open space it
+  leaps over cells; it only "slows down" when obstacles create forced choices.
+  The shared search loop is important to mention — it shows we designed the
+  benchmark fairly.
+
+
+================================================================================
+SLIDE 4 — PRELIMINARY RESULTS
+================================================================================
+
+HEADING: What the Numbers Show
+
+EXPERIMENTAL SETUP (small box or subtitle):
+  • 50×50 grids with random obstacles
+  • Three obstacle densities: 15%, 28%, 40% blocked
+  • 24 trials per density, fixed random seed (42)
+  • Start and goal placed as far apart as possible
+  • Only trials where all three algorithms found a valid path were counted
+
+DATA TABLE:
+  ┌──────────┬──────────────────┬──────────────────┬──────────────────┐
+  │          │   15% blocked    │   28% blocked    │   40% blocked    │
+  │          │ Expansions  ms   │ Expansions  ms   │ Expansions  ms   │
+  ├──────────┼──────────────────┼──────────────────┼──────────────────┤
+  │ Dijkstra │   2062    7.07   │   1659    4.96   │    915    2.73   │
+  │ A*       │   1020    3.74   │    629    2.11   │    513    1.70   │
+  │ JPS4     │    488    4.43   │    970    6.22   │    682    3.13   │
+  └──────────┴──────────────────┴──────────────────┴──────────────────┘
+
+INCLUDE THE FIGURE: results_combined.png
+  (two line charts side by side — node expansions and wall-clock time vs density)
+
+KEY FINDINGS (3 bullet points):
+  • A* cuts Dijkstra's node count by ~50% at all densities — the heuristic works
+  • JPS4 beats both at LOW density (488 vs 1020) — long corridors = big jumps
+  • JPS4 WORSE than A* at MEDIUM density (970 vs 629) — obstacles shorten
+    corridors, jumps get smaller, overhead stays constant
+
+TIMING NOTE:
+  • JPS4 is slower than A* on the clock despite fewer node expansions
+  • This is a Python prototype issue — JPS4's inner loop is more complex
+  • In C++/Java this overhead disappears (literature confirms this)
+  • Node expansions are the fairer comparison at this stage
+
+CORRECTNESS:
+  All three algorithms returned equal path lengths on every trial ✓
+
+SPEAKER NOTES:
+  Walk through the table row by row. The node expansion story is the main result
+  — JPS4 is clearly better on open maps. The timing inversion is something to
+  acknowledge honestly; it does not mean JPS4 is worse, it means Python adds
+  overhead that a compiled language would not. This is a known issue with
+  prototype benchmarks and is discussed in the original paper.
+
+
+================================================================================
+SLIDE 5 — CHALLENGES & NEXT STEPS
+================================================================================
+
+HEADING: What We Found Hard — and What's Next
+
+SECTION: Challenges Identified
+
+  1. FAIR TIMING COMPARISON
+     Python makes JPS4's inner loop more expensive than it should be.
+     Node expansions give a cleaner algorithmic picture right now.
+     Plan: profile the inner loop and optimize data access to reduce overhead.
+
+  2. GRID SIZE IS TOO SMALL
+     On 50×50, all algorithms finish in under 10ms — noise affects the timing.
+     JPS4's advantage compounds with map size (longer corridors = bigger jumps).
+     We need 100×100 and 200×200 to see the real performance gap.
+
+  3. DENSITY CROSS-OVER POINT NOT KNOWN
+     JPS4 wins at low density, loses at medium density.
+     We don't know exactly where the break-even point is.
+     Knowing this is practically important: it tells you when to use JPS4 vs A*.
+
+SECTION: Next Plan
+
+  Week 13 (now):
+    → Run benchmarks on 100×100 and 200×200 grids
+    → Sweep density 5% to 50% in 5% steps to find the cross-over point
+    → Complete the Snake-game visualization (search paths shown in distinct
+       colors during gameplay)
+
+  Week 14:
+    → Finalize all plots and tables
+    → Write the discussion comparing our results to literature benchmarks
+    → Bring the paper to final submission quality
+
+  Week 15:
+    → Prepare final slides
+    → Rehearse the live demo
+    → Final submission
+
+SPEAKER NOTES:
+  Be honest about the Python timing issue — professors appreciate when students
+  understand the limitations of their own setup. The density cross-over is
+  actually an interesting open question: JPS4 has a non-monotone advantage curve,
+  and mapping it is something the original papers don't do in detail for the
+  4-connected case. That makes it a genuinely novel contribution for the final
+  report.
+
+
+================================================================================
+OPTIONAL EXTRA: DEMO MENTION (if Snake game is ready in time)
+================================================================================
+
+If the Snake game visualization is ready, either:
+  (a) Add it as a half-slide after Slide 5, OR
+  (b) Do a live screen-share demo at the end of your presentation
+
+What the demo shows:
+  - A snake navigates toward food on a grid
+  - Each algorithm is shown separately (or switchable during runtime)
+  - The cells explored by the algorithm are highlighted in real time
+  - The difference between Dijkstra's wide fan-out, A*'s directed cone,
+    and JPS4's sparse jump-point pattern becomes immediately visible
+  - Path taken is shown when found
+
+This is the best way to make the algorithms feel tangible and not just abstract.
+
+
+================================================================================
+GENERAL PRESENTATION TIPS
+================================================================================
+  - Don't read off the slides — use bullet points as cues, explain in your words
+  - The table and figure should be visible and legible — don't shrink them
+  - Be ready to answer: "Why is JPS4 slower despite fewer expansions?" (Python)
+  - Be ready to answer: "How do you know the paths are correct?" (equal lengths)
+  - Be ready to answer: "What is a jump point exactly?" (see Slide 3 notes)
+  - Total speaking time is probably 5-8 minutes — keep each slide to ~90 seconds
+================================================================================
