@@ -7,11 +7,7 @@ from random import choice
 import os
 
 import numpy as np
-try:
-    import winsound
-    _HAS_WINSOUND = True
-except ImportError:
-    _HAS_WINSOUND = False
+import winsound
 
 path_dir = os.path.dirname(os.path.abspath(__file__)) + os.sep
 current_path_mode = "jps4"
@@ -258,8 +254,7 @@ class Snake:
         self.compare_layers = None
 
     def play(self):
-        if _HAS_WINSOUND:
-            winsound.PlaySound(f"{path_dir}Assets/roku_snake.wav", winsound.SND_LOOP + winsound.SND_ASYNC)
+        winsound.PlaySound(f"{path_dir}Assets/roku_snake.wav", winsound.SND_LOOP + winsound.SND_ASYNC)
         self.schedule_next()
 
     def cancel_tick(self):
@@ -558,14 +553,7 @@ class Snake:
             food = None
 
     def alive(self):
-        head_loc = self.head()
-        tail_loc = self.tail()
-        for d in [STEP_LEFT, STEP_RIGHT, STEP_UP, STEP_DOWN]:
-            new_loc = d(head_loc)
-            if 0 <= new_loc[0] < self.board.shape[0] and 0 <= new_loc[1] < self.board.shape[1]:
-                if self.board[new_loc] in [EMPTY, FOOD] or new_loc == tail_loc:
-                    return True
-        return False
+        return len(self.possible_moves_list(self.head())) > 0
 
     def head(self):
         return self.locations[0]
@@ -659,8 +647,7 @@ class Snake:
         self.cancel_tick()
         self.game_paused = True
         if play_sound:
-            if _HAS_WINSOUND:
-                winsound.PlaySound(f"{path_dir}Assets/price.wav", winsound.SND_ASYNC)
+            winsound.PlaySound(f"{path_dir}Assets/price.wav", winsound.SND_ASYNC)
         canvas.delete("all")
         L = compute_game_layout(canvas)
         cx = L["ox"] + L["grid_px"] // 2
