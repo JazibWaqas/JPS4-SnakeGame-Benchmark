@@ -10,7 +10,9 @@
 \usepackage{times}
 \linespread{1.05}
 \usepackage{microtype}
+\usepackage{xcolor}
 \usepackage{graphicx}
+\graphicspath{{figures/}}
 \usepackage{booktabs}
 \usepackage{enumitem}
 \usepackage[top=0.75in, bottom=0.75in, left=0.80in, right=0.80in]{geometry}
@@ -62,19 +64,22 @@ This report describes our progress on comparing three pathfinding algorithms
 (Dijkstra, A*, and Jump Point Search for 4-connected grids, or JPS4) on grid
 maps with randomly placed obstacles. We measure how many cells each algorithm
 visits and how long it takes across three obstacle densities. So far, A* cuts
-Dijkstra's node count roughly in half; JPS4 reduces it further at low densities
-by skipping over open space entirely. We have a working benchmark, preliminary
-results, and a Snake-game visualization in development to demonstrate all three
-algorithms side by side.
+Dijkstra's node count roughly in half, which was more or less expected; JPS4
+reduces it further at low densities by skipping over open space entirely,
+though it does not hold up as well once obstacles get denser, which was
+a bit surprising. We have a working benchmark, preliminary results, and a
+Snake-game visualization in development to demonstrate all three algorithms
+side by side.
 \end{abstract}
 
 % ── 1. Problem ───────────────────────────────────────────────────────────────
 \section{Problem}
 
-Grid-based pathfinding is a fundamental problem in computing, relevant to video
-games, robotics, and logistics. In a \emph{4-connected grid}, each cell connects
-to its four cardinal neighbours (up, down, left, right) at unit cost, and blocked
-cells act as walls. The task is: given a start cell and a goal cell, find the
+Grid-based pathfinding comes up in a lot of areas like video games, robotics,
+and logistics, and it is easy to underestimate how much work a naive search
+actually does. In a \emph{4-connected grid}, each cell connects to its four
+cardinal neighbours (up, down, left, right) at unit cost, and blocked cells
+act as walls. The task is: given a start cell and a goal cell, find the
 shortest path between them.
 
 A naive search checks every reachable cell before it can confirm the path is
@@ -113,9 +118,10 @@ points enter the open list, keeping it significantly smaller. The 4-connected
 8-connected formulation because the absence of diagonal moves changes where
 symmetric paths arise and requires different pruning rules.
 
-All three algorithms share the same search loop in our codebase, with pluggable
-heuristics and successor functions, so any measured difference comes from the
-algorithm logic, not how the code is written.
+We set things up so that all three algorithms run through the same search loop,
+with the heuristic and successor function swapped in per algorithm. That way
+any difference we measure is actually from the algorithm itself, not from
+one implementation being written more carefully than another.
 
 % ── 3. Preliminary Results ───────────────────────────────────────────────────
 \section{Preliminary Results}
@@ -158,10 +164,11 @@ At 15\% density, JPS4 visits only 488 nodes versus 1020 for A* and 2062 for
 Dijkstra, a 76\% reduction over Dijkstra. Open maps give JPS4 long unobstructed
 corridors to jump through, so the pruning is highly effective.
 
-At 28\% density, JPS4's count rises to 970, above A*'s 629. Denser obstacles
-shorten corridors, so each jump covers less ground while the per-step cost of
-checking for forced neighbours remains constant. The pruning still happens, but
-it delivers less benefit relative to its overhead.
+At 28\% density, JPS4's count rises to 970, which is actually above A*'s 629
+which was not what we initially expected. Denser obstacles shorten corridors, so
+each jump covers less ground while the per-step cost of checking for forced
+neighbours stays the same. The pruning still happens, it just stops being
+worth it.
 
 On wall-clock time, JPS4 is slower than A* at all densities despite visiting
 fewer nodes at low density. JPS4's inner loop is more complex than A*'s simple
@@ -170,52 +177,55 @@ In compiled implementations (C++, Java) this overhead is negligible
 \cite{harabor2011}. All three algorithms returned equal path lengths on every
 trial, which confirms that all three implementations are correct.
 
-At this stage, node expansions are the most reliable signal. The timing
-results will become more meaningful once we run experiments on larger grids
-where differences are large enough to rise above measurement noise.
+For now, node expansions are the more reliable number to look at. The timing
+results should become clearer once we test on larger grids where the
+differences are big enough to matter; we are still working out how to
+get a cleaner read on the inner loop cost.
 
 % ── 4. Challenges Identified ─────────────────────────────────────────────────
 \section{Challenges Identified}
 
 \begin{enumerate}
-  \item \textbf{Fair timing.} Python penalizes JPS4's more complex inner loop.
-    Node expansions give a cleaner picture of algorithmic efficiency, but
-    wall-clock timing is hard to interpret fairly in our current prototype.
-    We plan to profile the inner loop to find where time is being spent and
-    look for faster data access patterns to reduce per-step overhead.
+  \item \textbf{Fair timing.} Python is noticeably harder on JPS4 than on
+    the simpler A* loop, which makes the wall-clock numbers hard to interpret.
+    Node expansions give a cleaner picture of what is actually happening
+    algorithmically. We are planning to look more carefully at where the time
+    is going inside the jump function.
 
-  \item \textbf{Grid scale.} On 50$\times$50 maps all algorithms finish in
-    under 10ms. The differences in node count are real, but timing differences
-    are too small to draw strong conclusions. JPS4's advantage grows with map
-    size because longer corridors allow longer jumps, so we expect the gap to
-    widen at 100$\times$100 and 200$\times$200 scales.
+  \item \textbf{Grid scale.} Everything finishes in under 10ms on a
+    50$\times$50 grid, so the timing gaps are too noisy to say much about.
+    The node expansion counts are meaningful but we really need larger maps
+    to see a convincing difference. We think JPS4's advantage should grow
+    on 100$\times$100 and 200$\times$200 since longer open corridors give
+    it more room to skip.
 
-  \item \textbf{Density boundary.} JPS4 outperforms A* at low density but
-    underperforms at medium density. We have not yet identified where this
-    cross-over occurs. Knowing exactly where it falls will tell us the
-    conditions under which JPS4 is actually worth using over A*.
+  \item \textbf{Density boundary.} JPS4 clearly wins at low density but
+    falls behind A* somewhere between 15\% and 28\% and we have not
+    pinned down where exactly yet. Finding that cross-over is actually one
+    of the more interesting things left to do, since it tells you under
+    what conditions JPS4 is worth the extra overhead.
 \end{enumerate}
 
 % ── 5. Next Plan ─────────────────────────────────────────────────────────────
 \section{Next Plan}
 
 \begin{itemize}
-  \item \textbf{Week 13:} Run benchmarks on 100$\times$100 and
-    200$\times$200 grids. Sweep obstacle density from 5\% to 50\% in 5\%
-    steps to find the A*/JPS4 cross-over point and build the core dataset
-    for the final report.
+  \item \textbf{Week 13:} Scale the benchmarks up to 100$\times$100 and
+    200$\times$200. We also want to sweep density more finely (5\% to 50\%
+    in 5\% steps) to find where A* and JPS4 actually cross over, since
+    that is the main open question coming out of the preliminary run.
 
-  \item \textbf{Week 13:} Complete the Snake-game visualization, where
-    a snake navigates to food using each algorithm. Each algorithm's explored
-    cells will be shown in a distinct color so the search behavior is visible
-    during the demo.
+  \item \textbf{Week 13:} Finish the Snake-game visualization. The game
+    runs all three algorithms already but the compare mode still needs
+    work, and the goal is to show each algorithm's route in a distinct
+    color so the behavioral difference is visible in real time.
 
-  \item \textbf{Week 14:} Finalize all tables and figures. Write the
-    discussion comparing results to literature benchmarks and bring the
-    paper to final submission quality.
+  \item \textbf{Week 14:} Put together the final tables and figures once
+    the larger-grid data is in. Write up the discussion, mainly around
+    how our numbers compare to what Baum (2025) reports.
 
-  \item \textbf{Week 15:} Prepare slides, rehearse the live demo, and
-    submit by the deadline.
+  \item \textbf{Week 15:} Prepare the presentation and do a run-through
+    of the live demo before submitting.
 \end{itemize}
 
 % ── References ───────────────────────────────────────────────────────────────

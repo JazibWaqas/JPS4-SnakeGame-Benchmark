@@ -497,8 +497,8 @@ class PathingGrid:
         # Validate the final path
         if not self.validate_path(path):
             _pd("DEBUG: WARNING - Path validation failed!")
-            # If validation failed, we'll still return the path but log the warning
-        
+            return None
+
         return path
 
     def waypoints_to_path(self, waypoints: List[Point]) -> List[Point]:

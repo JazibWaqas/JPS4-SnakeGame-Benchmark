@@ -160,9 +160,9 @@ If you encounter any issues:
 ## Team
 
 - **Sameer Kamani** - Computer Science, Habib University
-
 - **Muhammad Ibad Nadeem** - Computer Science, Habib University
 - **Muhammad Taqi** - Computer Science, Habib University
 - **Supervisor**: Dr. Waqar Saleem, Habib University
 
 ---
+
