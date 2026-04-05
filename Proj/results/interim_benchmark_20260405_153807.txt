@@ -1,0 +1,16 @@
+Interim benchmark (same instance per trial for all three modes)
+datetime=20260405_153807  width=50  height=50  density=0.28
+trials_requested=30  seed=42  skipped_unreachable=0
+
+Mean / stdev over successful runs (path found):
+  dijkstra:  time_ms mean=5.5880  stdev=0.8035
+        expansions mean=1684.2  stdev=75.2
+  astar:  time_ms mean=2.0922  stdev=0.9430
+        expansions mean=568.4  stdev=203.2
+  jps4:  time_ms mean=9.1840  stdev=5.4019
+        expansions mean=1430.2  stdev=783.9
+
+CSV: C:\Users\OMNIBOOK\Documents\GitHub\JPS4-SnakeGame-Benchmark\Proj\results\interim_benchmark_20260405_153807.csv
+
+How to cite in report: synthetic 4-connected grids, uniform random obstacles,
+density p=0.28, 50x50, 30 instances, seed 42.

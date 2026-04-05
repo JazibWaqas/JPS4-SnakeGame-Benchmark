@@ -1,0 +1,28 @@
+When to review (recommended order)
+------------------------------------
+
+1) NOW — After this run, review:
+   - Proj/results/preliminary_*.csv and .json (numbers match your expectations)
+   - Proj/report/figures/*.png (plots look OK for slides)
+   - Proj/report/generated_numbers.tex (auto; do not hand-edit)
+
+2) BEFORE you build the PDF — Edit by hand:
+   - Proj/report/progress_report_acl.tex → replace author names and email addresses
+   - Skim abstract + challenges + timeline; adjust wording to your voice
+
+3) BUILD PDF — On a machine with LaTeX:
+   - cd Proj/report
+   - powershell -ExecutionPolicy Bypass -File build_pdf.ps1
+   Or: open the report folder in Overleaf, main file progress_report_acl.tex, Recompile
+
+4) FINAL REVIEW (e.g. day before due date April 5, 2026) — Check:
+   - PDF is 2 pages (or acceptable length for your instructor)
+   - Table numbers match generated_numbers.tex / figures
+   - Slides can reuse the same PNGs from report/figures/
+
+Regenerating benchmark numbers after code changes
+-------------------------------------------------
+  cd Proj
+  pip install -r requirements.txt
+  python run_preliminary_benchmark.py
+Then rebuild PDF so the table updates.

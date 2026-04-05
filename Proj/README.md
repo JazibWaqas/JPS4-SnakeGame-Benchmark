@@ -33,9 +33,44 @@ Assets load from the same directory as the script (`Assets/`), so running via th
 - `Snake Game Code/pathing_grid.py` — grid, Dijkstra/A*/JPS4, timings and expansion counts.
 - `Snake Game Code/helper.py` — `Point`, `AstarContext`, heap-based search.
 
+## Preliminary benchmark + report (interim)
+
+Install dependencies:
+
+```text
+pip install -r requirements.txt
+```
+
+Run the full preliminary suite (three densities, plots, LaTeX number file):
+
+```text
+python run_preliminary_benchmark.py
+```
+
+This writes:
+
+- `results/preliminary_*.csv` and `results/preliminary_*.json`
+- `report/generated_numbers.tex` (table macros for the paper)
+- `report/figures/preliminary_expansions.png`, `preliminary_time_ms.png`
+
+Smaller single-density run:
+
+```text
+python benchmark_interim.py
+```
+
+Build the PDF (needs LaTeX: MiKTeX / TeX Live, or upload `report/` to Overleaf):
+
+```text
+cd report
+pdflatex progress_report_acl.tex
+```
+
+See `report/README.txt`.
+
 ## Datasets / benchmarks
 
-Grids are procedural or hand-authored layouts in code (no external URL). For the interim report, describe inputs as generated 4-connected grids with controlled obstacle density and fixed test maps. Scripted benchmark batches are planned separately from this demo.
+Grids are synthetic (random obstacles, controlled density). The game is for intuition; `run_preliminary_benchmark.py` produces the quantitative preliminary results used in `report/progress_report_acl.tex`.
 
 ## References
 
