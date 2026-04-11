@@ -3,10 +3,10 @@ Interim benchmark: same random grids, Dijkstra vs A* vs JPS4.
 Writes results/ for the progress report (tables + optional plots).
 
 Run from repo root:
-  python Proj/benchmark_interim.py
+    python Proj/benchmark_interim.py
 
 Or from Proj:
-  python benchmark_interim.py
+    python benchmark_interim.py
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import os
 import random
 import statistics
 import sys
+from collections import deque
 from datetime import datetime
 from typing import List, Optional, Tuple
 
@@ -49,26 +50,45 @@ def grid_to_pg(g: Grid) -> PathingGrid:
     return pg
 
 
+def _bfs_farthest(g: Grid, source: Tuple[int, int]) -> Tuple[Tuple[int, int], int]:
+    """BFS from source; return (farthest reachable cell, distance)."""
+    h, w = len(g), len(g[0])
+    dist = {source: 0}
+    q = deque([source])
+    far_cell, far_d = source, 0
+    while q:
+        cur = q.popleft()
+        d = dist[cur]
+        if d > far_d:
+            far_d, far_cell = d, cur
+        y, x = cur
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < h and 0 <= nx < w and not g[ny][nx] and (ny, nx) not in dist:
+                dist[(ny, nx)] = d + 1
+                q.append((ny, nx))
+    return far_cell, far_d
+
+
 def pick_start_goal(g: Grid, rng: random.Random) -> Optional[Tuple[Point, Point]]:
+    """Pick a (start, goal) pair that is close to the graph diameter of the grid.
+
+    Uses the classic two-BFS trick: from a random seed, BFS to its farthest cell A;
+    from A, BFS to its farthest cell B. (A, B) is a 2-approximation of the diameter
+    of the component containing the seed. This replaces the previous
+    random-Manhattan-sampling heuristic, which systematically under-sampled long
+    paths on grids with many free cells.
+    """
     h, w = len(g), len(g[0])
     free = [(y, x) for y in range(h) for x in range(w) if not g[y][x]]
     if len(free) < 2:
         return None
-    rng.shuffle(free)
-    best = None
-    best_d = -1
-    for _ in range(min(80, len(free) * len(free) // 2 + 1)):
-        a = free[rng.randrange(len(free))]
-        b = free[rng.randrange(len(free))]
-        if a == b:
-            continue
-        d = abs(a[0] - b[0]) + abs(a[1] - b[1])
-        if d > best_d:
-            best_d = d
-            best = (a, b)
-    if best is None:
+    seed = free[rng.randrange(len(free))]
+    a, _ = _bfs_farthest(g, seed)
+    b, d = _bfs_farthest(g, a)
+    if a == b or d == 0:
         return None
-    (y0, x0), (y1, x1) = best
+    (y0, x0), (y1, x1) = a, b
     return Point(x0, y0), Point(x1, y1)
 
 

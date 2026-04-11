@@ -7,7 +7,15 @@ from random import choice
 import os
 
 import numpy as np
-import winsound
+try:
+    import winsound
+    _HAS_WINSOUND = True
+except ImportError:
+    _HAS_WINSOUND = False
+    class _Winsound:
+        SND_LOOP = SND_ASYNC = SND_PURGE = 0
+        def PlaySound(self, *a, **k): pass
+    winsound = _Winsound()
 
 path_dir = os.path.dirname(os.path.abspath(__file__)) + os.sep
 GAME_DEBUG = False
@@ -736,5 +744,6 @@ def on_difficulty_chosen(density: float):
     main_snake.play()
 
 
-start_menu()
-banana.mainloop()
+if __name__ == "__main__":
+    start_menu()
+    banana.mainloop()

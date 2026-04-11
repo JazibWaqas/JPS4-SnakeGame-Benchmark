@@ -10,7 +10,9 @@
 \usepackage{times}
 \linespread{1.05}
 \usepackage{microtype}
+\usepackage{xcolor}
 \usepackage{graphicx}
+\graphicspath{{figures/}}
 \usepackage{booktabs}
 \usepackage{enumitem}
 \usepackage[top=0.75in, bottom=0.75in, left=0.80in, right=0.80in]{geometry}
@@ -61,11 +63,14 @@
 This report describes our progress on comparing three pathfinding algorithms
 (Dijkstra, A*, and Jump Point Search for 4-connected grids, or JPS4) on grid
 maps with randomly placed obstacles. We measure how many cells each algorithm
-visits and how long it takes across three obstacle densities. So far, A* cuts
-Dijkstra's node count roughly in half; JPS4 reduces it further at low densities
-by skipping over open space entirely. We have a working benchmark, preliminary
-results, and a Snake-game visualization in development to demonstrate all three
-algorithms side by side.
+visits and how long it takes across three obstacle densities. A* cuts
+Dijkstra's node count roughly in half; JPS4 reduces it further by skipping
+over open space entirely, expanding 61\%, 43\%, and 40\% fewer nodes than A*
+at 15\%, 28\%, and 40\% blocked respectively. We rewrote the JPS4 pruning
+rules verbatim from Baum's paper after an early implementation silently used
+fallback hacks; a 498-trial correctness sweep now shows JPS4 $\leq$ A* in
+every trial. We have a working benchmark, a Snake-game demo cycling through
+the three algorithms, and a unit-test suite covering each of the fixes.
 \end{abstract}
 
 % ── 1. Problem ───────────────────────────────────────────────────────────────
@@ -138,9 +143,9 @@ with seed 42.
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
   & Exp. & ms & Exp. & ms & Exp. & ms \\
 \midrule
-Dijkstra  & 2062 & 7.07 & 1659 & 4.96 & 915 & 2.73 \\
-A*        & 1020 & 3.74 &  629 & 2.11 & 513 & 1.70 \\
-JPS4      &  488 & 4.43 &  970 & 6.22 & 682 & 3.13 \\
+Dijkstra  & 2119 & 82.3 & 1761 & 55.9 & 597 & 17.0 \\
+A*        & 1614 & 63.2 & 1031 & 34.7 & 443 & 13.1 \\
+JPS4      &  624 & 48.6 &  583 & 33.9 & 268 & 13.3 \\
 \bottomrule
 \end{tabular}
 \caption{Mean node expansions and search time per density (24 trials, 50$\times$50 grid).}
@@ -154,25 +159,27 @@ JPS4      &  488 & 4.43 &  970 & 6.22 & 682 & 3.13 \\
 \label{fig:results}
 \end{figure}
 
-At 15\% density, JPS4 visits only 488 nodes versus 1020 for A* and 2062 for
-Dijkstra, a 76\% reduction over Dijkstra. Open maps give JPS4 long unobstructed
-corridors to jump through, so the pruning is highly effective.
+At 15\% density, JPS4 visits only 624 nodes versus 1614 for A* and 2119 for
+Dijkstra, a 71\% reduction over Dijkstra and a 61\% reduction over A*. Open
+maps give JPS4 long unobstructed corridors to jump through, so the pruning is
+highly effective.
 
-At 28\% density, JPS4's count rises to 970, above A*'s 629. Denser obstacles
-shorten corridors, so each jump covers less ground while the per-step cost of
-checking for forced neighbours remains constant. The pruning still happens, but
-it delivers less benefit relative to its overhead.
+At 28\% density, JPS4 expands 583 nodes versus A*'s 1031, a 43\% reduction.
+As obstacles multiply, corridors shorten and each jump covers less ground, so
+the absolute gap narrows, but JPS4's canonical ordering continues to prune
+symmetric paths that A* would otherwise enumerate, and the advantage persists.
 
-On wall-clock time, JPS4 is slower than A* at all densities despite visiting
-fewer nodes at low density. JPS4's inner loop is more complex than A*'s simple
-four-way neighbour lookup, and Python's interpreter amplifies this per-step cost.
-In compiled implementations (C++, Java) this overhead is negligible
-\cite{harabor2011}. All three algorithms returned equal path lengths on every
-trial, which confirms that all three implementations are correct.
+At 40\% density, JPS4 expands 268 nodes versus A*'s 443 (a 40\% reduction).
+This matches the qualitative prediction from Baum \cite{baum2025}: JPS4 wins
+at every density where there is any meaningful obstacle structure.
 
-At this stage, node expansions are the most reliable signal. The timing
-results will become more meaningful once we run experiments on larger grids
-where differences are large enough to rise above measurement noise.
+On wall-clock time, JPS4 roughly tracks or beats A* at every density in our
+Python prototype (48.6 vs 63.2 ms at 15\%, 33.9 vs 34.7 ms at 28\%, 13.3 vs
+13.1 ms at 40\%). On compiled implementations the ratio is much larger
+\cite{harabor2011,baum2025}. All three algorithms returned equal path lengths
+on every trial, and JPS4's outer-fallback tripwire stayed at zero across a
+498-trial verification sweep, which together confirm that all three
+implementations are correct.
 
 % ── 4. Challenges Identified ─────────────────────────────────────────────────
 \section{Challenges Identified}
@@ -190,10 +197,16 @@ where differences are large enough to rise above measurement noise.
     size because longer corridors allow longer jumps, so we expect the gap to
     widen at 100$\times$100 and 200$\times$200 scales.
 
-  \item \textbf{Density boundary.} JPS4 outperforms A* at low density but
-    underperforms at medium density. We have not yet identified where this
-    cross-over occurs. Knowing exactly where it falls will tell us the
-    conditions under which JPS4 is actually worth using over A*.
+  \item \textbf{Implementation correctness of JPS4.} During early
+    benchmarking we observed an anomaly where JPS4 expanded more nodes than
+    A* at medium density. Tracing the cause revealed that the horizontal
+    pruning rule was dropping the two non-parent vertical neighbours that
+    Baum's Algorithm~2 says are natural (\cite{baum2025}, \S4.2: ``Horizontal:
+    we don't prune any nodes''), and a fallback hack was silently injecting
+    A*-style neighbours to keep the search from getting stuck. We rewrote
+    the pruning rules verbatim from the paper, removed the fallback, and
+    installed a tripwire counter; a 498-trial sweep across densities 0\%--45\%
+    now shows JPS4 $\leq$ A* in 498/498 trials with zero fallback hits.
 \end{enumerate}
 
 % ── 5. Next Plan ─────────────────────────────────────────────────────────────

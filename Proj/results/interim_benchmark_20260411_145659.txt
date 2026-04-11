@@ -1,0 +1,16 @@
+Interim benchmark (same instance per trial for all three modes)
+datetime=20260411_145659  width=50  height=50  density=0.4
+trials_requested=25  seed=42  skipped_unreachable=0
+
+Mean / stdev over successful runs (path found):
+  dijkstra:  time_ms mean=20.4513  stdev=14.7002
+        expansions mean=607.0  stdev=430.4
+  astar:  time_ms mean=15.6238  stdev=11.0993
+        expansions mean=457.7  stdev=329.2
+  jps4:  time_ms mean=15.5644  stdev=11.5565
+        expansions mean=276.4  stdev=197.8
+
+CSV: /home/rolex/Salman Adnan/HU Files/8th Semester/Algorithm: Design & Analysis/Project/Code/Proj/results/interim_benchmark_20260411_145659.csv
+
+How to cite in report: synthetic 4-connected grids, uniform random obstacles,
+density p=0.4, 50x50, 25 instances, seed 42.

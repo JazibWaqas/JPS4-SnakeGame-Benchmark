@@ -38,22 +38,23 @@ class Point:
             dy = dy // abs(dy)
         return Point(dx, dy)
 
-# --- Union-Find ---
+# --- Union-Find (iterative path-halving: safe on large grids) ---
 class UnionFind:
     def __init__(self, n: int):
         self.parent = list(range(n))
-    
+
     def find(self, x: int) -> int:
-        if self.parent[x] != x:
-            self.parent[x] = self.find(self.parent[x])
-        return self.parent[x]
-    
+        while self.parent[x] != x:
+            self.parent[x] = self.parent[self.parent[x]]  # path halving
+            x = self.parent[x]
+        return x
+
     def union(self, x: int, y: int) -> None:
         rx = self.find(x)
         ry = self.find(y)
         if rx != ry:
             self.parent[ry] = rx
-    
+
     def equiv(self, x: int, y: int) -> bool:
         return self.find(x) == self.find(y)
 
