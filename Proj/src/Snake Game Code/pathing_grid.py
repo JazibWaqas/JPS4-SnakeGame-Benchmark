@@ -106,63 +106,47 @@ class PathingGrid:
                     
         return pruned
 
-    def jps_jump(self, current: Point, direction: Point, goal: Point) -> Optional[Point]:
-        """
-        Jump from current node in direction until finding:
-        1. The goal node
-        2. A forced neighbor
-        3. A blocked cell
-        
-        For JPS4, we always return horizontal steps immediately and continue vertical jumps.
-        """
-        # Calculate the next point in the direction
-        next_point = Point(current.x + direction.x, current.y + direction.y)
-        
-        # If out of bounds or blocked, stop
-        if not self.can_move_to(next_point):
-            _pd(f"DEBUG: Jump stopped at {next_point} - blocked or out of bounds")
-            return None
-            
-        # If this is the goal, return it
-        if isinstance(goal, Point) and next_point == goal:
-            _pd(f"DEBUG: Jump found goal at {next_point}")
-            return next_point
-        elif callable(goal) and goal(next_point):
-            _pd(f"DEBUG: Jump found goal at {next_point}")
-            return next_point
-            
-        # For horizontal movement, return immediately (key aspect of JPS4)
-        if direction.x != 0:
-            # Check for forced neighbors before returning
-            has_forced = False
+    def jps_jump_horizontal(self, start: Point, dx: int, goal: Callable) -> Optional[Point]:
+        """Scan horizontally from start. Return the first jump point or None."""
+        x, y = start.x + dx, start.y
+        while True:
+            if not self.can_move_to(Point(x, y)):
+                return None
+            p = Point(x, y)
+            if goal(p):
+                return p
+            # Forced neighbor: obstacle above/below at previous x but open at current x
+            prev_x = x - dx
             for dy in [-1, 1]:
-                check_prev = Point(current.x, current.y + dy)
-                check_next = Point(next_point.x, next_point.y + dy)
-                if not self.can_move_to(check_prev) and self.can_move_to(check_next):
-                    has_forced = True
-                    break
-                    
-            if has_forced:
-                _pd(f"DEBUG: Jump found forced neighbor at {next_point} (horizontal)")
-            else:
-                _pd(f"DEBUG: Jump stopped at {next_point} (horizontal - no forced)")
-                
-            return next_point  # Always return for horizontal movement in JPS4
-                    
-        # For vertical movement, check for forced neighbors
-        if direction.y != 0:
+                if not self.can_move_to(Point(prev_x, y + dy)) and self.can_move_to(Point(x, y + dy)):
+                    return p
+            x += dx
+
+    def jps_jump_vertical(self, start: Point, dy: int, goal: Callable) -> Optional[Point]:
+        """Scan vertically from start. At each row check horizontal jumps. Return jump point or None."""
+        x, y = start.x, start.y + dy
+        while True:
+            if not self.can_move_to(Point(x, y)):
+                return None
+            p = Point(x, y)
+            if goal(p):
+                return p
+            # Forced neighbor: obstacle left/right at previous y but open at current y
+            prev_y = y - dy
             for dx in [-1, 1]:
-                check_prev = Point(current.x + dx, current.y)
-                check_next = Point(next_point.x + dx, next_point.y)
-                if not self.can_move_to(check_prev) and self.can_move_to(check_next):
-                    _pd(f"DEBUG: Jump found forced neighbor at {next_point} (vertical)")
-                    return next_point  # Found a forced neighbor
-                    
-            # No forced neighbors, recursively continue in same direction
-            result = self.jps_jump(next_point, direction, goal)
-            return result
-                
-        # Should never reach here
+                if not self.can_move_to(Point(x + dx, prev_y)) and self.can_move_to(Point(x + dx, y)):
+                    return p
+            # Recursive horizontal check: if a horizontal jump from here finds a jump point, this is a jump point
+            for dx in [-1, 1]:
+                if self.jps_jump_horizontal(p, dx, goal) is not None:
+                    return p
+            y += dy
+
+    def jps_jump(self, current: Point, direction: Point, goal) -> Optional[Point]:
+        if direction.x != 0 and direction.y == 0:
+            return self.jps_jump_horizontal(current, direction.x, goal)
+        if direction.y != 0 and direction.x == 0:
+            return self.jps_jump_vertical(current, direction.y, goal)
         return None
 
     def jps_successors(self, parent: Optional[Point], node: Point, goal: Callable[[Point], bool]) -> List[Tuple[Point, int]]:
@@ -209,13 +193,11 @@ class PathingGrid:
                 _pd(f"DEBUG: Jump from {node} found successor {jump_result} with cost {cost}")
                 successors.append((jump_result, cost))
                 
-        # If no successors were found and this isn't the start node, add fallback options
-        if not successors and parent is not None:
-            _pd(f"DEBUG: No successors found for {node}, adding fallbacks")
-            # Add regular neighbors that aren't the parent
+        # Fallback: if JPS pruning produced no successors, add all valid neighbors
+        # This prevents dead-ends in areas where obstacles fully suppress jump points
+        if not successors:
             for adj in node.neumann_neighborhood():
                 if self.can_move_to(adj) and adj != parent:
-                    _pd(f"DEBUG: Adding fallback neighbor {adj}")
                     successors.append((adj, C))
                     
         _pd(f"DEBUG: Final successors for {node}: {[s[0] for s in successors]}")
@@ -303,25 +285,10 @@ class PathingGrid:
             _pd("".join("X" if self.grid[row][col] else "." for col in range(self.width)))
         _pd(f"DEBUG: Searching path from {start} to {goal} (approx={mode})")
         
-        if start.manhattan_distance(goal) == 1:
-            _pd(f"DEBUG: Direct adjacent path found from {start} to {goal}")
-            self.last_ms = 0.0
-            self.last_expansions = 0
-            self.last_path_len = 2
-            return [start, goal]
-        
-        direct_path = self.find_direct_path(start, goal)
-        if direct_path:
-            _pd(f"DEBUG: Direct path found: {direct_path}")
-            self.last_ms = 0.0
-            self.last_expansions = 0
-            self.last_path_len = len(direct_path)
-            return direct_path
-        
         if not self.reachable(start, goal):
             _pd("DEBUG: Not reachable (UnionFind check)!")
             return None
-            
+
         goal_test = lambda pt: pt == goal
         heuristic = lambda point: int(self.heuristic(point, goal) * self.heuristic_factor)
         succ_astar = lambda p, n: self.standard_astar_successors(n, goal_test)
@@ -362,34 +329,22 @@ class PathingGrid:
             _pd("DEBUG: No path found!")
             return None
             
-        (path, cost) = result
-        _pd(f"DEBUG: Raw path found: {path}")
-        
-        # Make sure the goal is in the path
-        if path and path[-1] != goal and path[-1].manhattan_distance(goal) == 1:
-            path.append(goal)
-            _pd(f"DEBUG: Extended path with goal: {path}")
-            
-        # Handle the case of adjacent start and goal
-        if start.manhattan_distance(goal) == 1 and len(path) < 2:
-            path = [start, goal]
-            _pd(f"DEBUG: Forced adjacent path: {path}")
-            
-        # Try to find post-processing optimizations
-        optimized = self.post_process_path(path)
-        _pd(f"DEBUG: Post-processed path: {optimized}")
-        
-        # Validate the optimized path
-        if not self.validate_path(optimized):
-            _pd("DEBUG: Optimized path validation failed, returning original path")
-            # If optimization fails, check the original path
-            if self.validate_path(path):
-                return path
-            else:
-                _pd("DEBUG: Original path also invalid. Path finding failed.")
-                return None
-                
-        return optimized
+        (waypoints, cost) = result
+        _pd(f"DEBUG: Raw waypoints: {waypoints}")
+
+        # Ensure goal is included
+        if waypoints and waypoints[-1] != goal:
+            waypoints.append(goal)
+
+        # Expand jump-point waypoints into a fully adjacent path
+        path = self.waypoints_to_path(waypoints)
+        _pd(f"DEBUG: Expanded path: {path}")
+
+        if not self.validate_path(path):
+            _pd("DEBUG: Path validation failed after expansion")
+            return None
+
+        return path
     
     def find_direct_path(self, start: Point, goal: Point) -> Optional[List[Point]]:
         """
@@ -490,41 +445,30 @@ class PathingGrid:
         if waypoints is None or len(waypoints) == 0:
             return None
             
-        path = self.waypoints_to_path(waypoints)
-        self.last_path_len = len(path) if path else 0
-        _pd(f"DEBUG: Final path after waypoints_to_path: {path}")
-        
-        # Validate the final path
-        if not self.validate_path(path):
-            _pd("DEBUG: WARNING - Path validation failed!")
-            # If validation failed, we'll still return the path but log the warning
-        
-        return path
+        self.last_path_len = len(waypoints) if waypoints else 0
+        return waypoints
 
     def waypoints_to_path(self, waypoints: List[Point]) -> List[Point]:
-        """Convert waypoints to a path where each step is adjacent to the previous one."""
+        """Convert waypoints to a path where each step is adjacent (4-connected) to the previous."""
         if not waypoints:
             return []
-        
-        # Start with the first waypoint
+
         path = [waypoints[0]]
-        
-        # Process each waypoint
+
         for i in range(1, len(waypoints)):
             current = path[-1]
             target = waypoints[i]
-            
-            # Add intermediate steps until we reach the target
-            while current.manhattan_distance(target) > 0:
-                # Take a single step toward the target
-                direction = current.direction_to(target)
-                current = current + direction
+            # Walk one axis at a time to stay 4-connected (never diagonal)
+            # Horizontal first, then vertical
+            while current.x != target.x:
+                step = 1 if target.x > current.x else -1
+                current = Point(current.x + step, current.y)
                 path.append(current)
-                
-                # If we've reached the target, break
-                if current.x == target.x and current.y == target.y:
-                    break
-        
+            while current.y != target.y:
+                step = 1 if target.y > current.y else -1
+                current = Point(current.x, current.y + step)
+                path.append(current)
+
         return path
 
     def optimize_path(self, path: List[Point]) -> List[Point]:
