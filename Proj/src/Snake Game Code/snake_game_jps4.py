@@ -111,10 +111,10 @@ def compute_game_layout(cv) -> dict:
             "ox": ox, "oy": oy, "W": W, "H": H, "hud_y0": hud_y0}
 
 
-def update_pathing_grid(pg: PathingGrid, board: np.ndarray):
+def update_pathing_grid(grid, board):
     for row in range(board.shape[0]):
         for col in range(board.shape[1]):
-            pg.set(col, row, board[row, col] in [WALL, BODY])
+            grid.set(col, row, board[row, col] in [WALL, BODY])
 
 
 class Snake:
@@ -170,22 +170,22 @@ class Snake:
         head_loc = self.head()
         tail_loc = self.tail()
 
-        pg = PathingGrid(self.board.shape[1], self.board.shape[0], False)
+        grid = PathingGrid(self.board.shape[1], self.board.shape[0], False)
         temp_board = self.board.copy()
         temp_board[tail_loc] = EMPTY
-        update_pathing_grid(pg, temp_board)
+        update_pathing_grid(grid, temp_board)
 
         start = Point(head_loc[1], head_loc[0])
         goal_pt = Point(food[1], food[0])
-
-        path = pg.get_path_single_goal(start, goal_pt, mode=current_path_mode)
-        self.pf_ms = pg.last_ms
-        self.pf_exp = pg.last_expansions
+        # print("searching", start, "->", goal_pt)
+        path = grid.get_path_single_goal(start, goal_pt, mode=current_path_mode)
+        self.pf_ms = grid.last_ms
+        self.pf_exp = grid.last_expansions
         self.pf_steps = len(path) if path else 0
-        self.round_ms += pg.last_ms
-        self.round_exp += pg.last_expansions
+        self.round_ms += grid.last_ms
+        self.round_exp += grid.last_expansions
         if self.round_path == 0 and path:
-            self.round_path = len(path)  # capture full path length on first search
+            self.round_path = len(path)
         sync_metrics()
 
         if not path or len(path) < 2:
