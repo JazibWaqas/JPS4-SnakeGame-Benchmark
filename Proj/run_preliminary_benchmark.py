@@ -1,11 +1,6 @@
-"""
-Preliminary benchmark for progress report: multiple obstacle densities,
-Dijkstra / A* / JPS4 via PathingGrid. Writes CSV, summary JSON, LaTeX snippet, and PNG plots.
-
-Run: python run_preliminary_benchmark.py
-"""
-
-from __future__ import annotations
+# preliminary benchmark for the progress report
+# runs dijkstra/astar/jps4 across 3 densities, dumps csv/json/tex/png
+# run: python run_preliminary_benchmark.py
 
 import csv
 import json
@@ -14,7 +9,6 @@ import random
 import statistics
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
 
 _PROJ = os.path.dirname(os.path.abspath(__file__))
 _CODE = os.path.join(_PROJ, "src", "Snake Game Code")
@@ -26,7 +20,6 @@ from pathing_grid import PathingGrid
 
 from benchmark_interim import (
     MODES,
-    Grid,
     make_grid,
     grid_to_pg,
     pick_start_goal,
@@ -35,21 +28,14 @@ from benchmark_interim import (
 
 try:
     import matplotlib
-
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 except ImportError:
     plt = None
 
 
-def run_density_block(
-    width: int,
-    height: int,
-    density: float,
-    trials: int,
-    rng: random.Random,
-) -> Tuple[List[dict], int]:
-    rows: List[dict] = []
+def run_density_block(width, height, density, trials, rng):
+    rows = []
     skipped = 0
     for t in range(trials):
         for _ in range(400):
@@ -68,25 +54,24 @@ def run_density_block(
             if not all(o[1] for o in outs):
                 continue
             for mode, ok, ms, exp, plen in outs:
-                rows.append(
-                    {
-                        "trial": t,
-                        "density": density,
-                        "mode": mode,
-                        "ok": ok,
-                        "ms": round(ms, 6),
-                        "expansions": exp,
-                        "path_cells": plen,
-                    }
-                )
+                rows.append({
+                    "trial": t,
+                    "density": density,
+                    "mode": mode,
+                    "ok": ok,
+                    "ms": round(ms, 6),
+                    "expansions": exp,
+                    "path_cells": plen,
+                })
             break
         else:
             skipped += 1
+            # print("skipped trial", t, "at density", density)
     return rows, skipped
 
 
-def aggregate(rows: List[dict]) -> Dict[str, Any]:
-    out: Dict[str, Any] = {}
+def aggregate(rows):
+    out = {}
     for m in MODES:
         ms_list = [r["ms"] for r in rows if r["mode"] == m and r["ok"]]
         ex_list = [r["expansions"] for r in rows if r["mode"] == m and r["ok"]]
@@ -100,13 +85,7 @@ def aggregate(rows: List[dict]) -> Dict[str, Any]:
     return out
 
 
-def plot_bars(
-    densities: List[float],
-    series: Dict[str, Dict[float, float]],
-    ylabel: str,
-    outfile: str,
-    title: str,
-) -> None:
+def plot_bars(densities, series, ylabel, outfile, title):
     if plt is None:
         return
     x = list(range(len(densities)))
@@ -127,7 +106,7 @@ def plot_bars(
     plt.close(fig)
 
 
-def main() -> None:
+def main():
     width, height = 50, 50
     densities = [0.15, 0.28, 0.40]
     trials_per = 24
@@ -138,10 +117,11 @@ def main() -> None:
     os.makedirs(fig_dir, exist_ok=True)
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    all_rows: List[dict] = []
+    all_rows = []
     skipped_total = 0
 
     for di, d in enumerate(densities):
+        print("running density", d)
         rng = random.Random(base_seed + di * 1000)
         rows, sk = run_density_block(width, height, d, trials_per, rng)
         all_rows.extend(rows)
@@ -155,11 +135,11 @@ def main() -> None:
         for r in all_rows:
             w.writerow({k: r.get(k) for k in fieldnames if k in r})
 
-    by_density: Dict[float, List[dict]] = {d: [] for d in densities}
+    by_density = {d: [] for d in densities}
     for r in all_rows:
         by_density[r["density"]].append(r)
 
-    summary: Dict[str, Any] = {
+    summary = {
         "stamp": stamp,
         "grid": f"{width}x{height}",
         "densities": densities,
@@ -185,52 +165,44 @@ def main() -> None:
         json.dump(summary, f, indent=2)
 
     if plt is not None:
-        plot_bars(
-            densities,
-            exp_series,
-            "Mean expansions (heap pops)",
-            os.path.join(fig_dir, "preliminary_expansions.png"),
-            "Preliminary: mean expansions vs obstacle density",
-        )
-        plot_bars(
-            densities,
-            time_series,
-            "Mean time (ms)",
-            os.path.join(fig_dir, "preliminary_time_ms.png"),
-            "Preliminary: mean search time vs obstacle density",
-        )
+        plot_bars(densities, exp_series, "Mean expansions (heap pops)",
+                  os.path.join(fig_dir, "preliminary_expansions.png"),
+                  "Preliminary: mean expansions vs obstacle density")
+        plot_bars(densities, time_series, "Mean time (ms)",
+                  os.path.join(fig_dir, "preliminary_time_ms.png"),
+                  "Preliminary: mean search time vs obstacle density")
 
     tex_path = os.path.join(_PROJ, "report", "generated_numbers.tex")
-    lines = [
-        "% auto-generated by run_preliminary_benchmark.py — do not edit by hand",
-        f"\\newcommand{{\\BenchStamp}}{{{stamp}}}",
-        f"\\newcommand{{\\BenchGrid}}{{{width}$\\times${height}}}",
-        f"\\newcommand{{\\BenchTrialsPer}}{{{trials_per}}}",
-        f"\\newcommand{{\\BenchSeed}}{{{base_seed}}}",
-    ]
+    lines = ["% auto generated, do not edit by hand"]
+    lines.append(f"\\newcommand{{\\BenchStamp}}{{{stamp}}}")
+    lines.append(f"\\newcommand{{\\BenchGrid}}{{{width}$\\times${height}}}")
+    lines.append(f"\\newcommand{{\\BenchTrialsPer}}{{{trials_per}}}")
+    lines.append(f"\\newcommand{{\\BenchSeed}}{{{base_seed}}}")
     for m in MODES:
         key = {"dijkstra": "Dij", "astar": "Ast", "jps4": "Jps"}[m]
         for i, d in enumerate(densities):
             a = summary["per_density"][str(d)][m]
             em = a["exp_mean"]
             tm = a["time_mean"]
-            lines.append(
-                f"\\newcommand{{\\{key}Exp{i}}}{{{em:.1f}}}" if em is not None else f"\\newcommand{{\\{key}Exp{i}}}{{--}}"
-            )
-            lines.append(
-                f"\\newcommand{{\\{key}Time{i}}}{{{tm:.3f}}}" if tm is not None else f"\\newcommand{{\\{key}Time{i}}}{{--}}"
-            )
+            if em is not None:
+                lines.append(f"\\newcommand{{\\{key}Exp{i}}}{{{em:.1f}}}")
+            else:
+                lines.append(f"\\newcommand{{\\{key}Exp{i}}}{{--}}")
+            if tm is not None:
+                lines.append(f"\\newcommand{{\\{key}Time{i}}}{{{tm:.3f}}}")
+            else:
+                lines.append(f"\\newcommand{{\\{key}Time{i}}}{{--}}")
     with open(tex_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
-    print("Preliminary benchmark complete.")
-    print(f"  CSV: {csv_path}")
-    print(f"  JSON: {json_path}")
-    print(f"  LaTeX numbers: {tex_path}")
+    print("done.")
+    print("  csv:", csv_path)
+    print("  json:", json_path)
+    print("  tex:", tex_path)
     if plt:
-        print(f"  Figures: {fig_dir}/preliminary_expansions.png, preliminary_time_ms.png")
+        print("  figures:", fig_dir)
     else:
-        print("  (matplotlib not installed — skipped plots; pip install matplotlib)")
+        print("  (no matplotlib, skipped plots)")
 
 
 if __name__ == "__main__":

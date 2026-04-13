@@ -1,4 +1,4 @@
-"""Dijkstra vs A* vs JPS4 on the same random grids. Dumps CSV + summary.txt."""
+# quick interim bench: dijkstra/astar/jps4 on same random grids
 
 import argparse
 import csv
@@ -8,6 +8,8 @@ import statistics
 import sys
 from collections import deque
 from datetime import datetime
+
+DEBUG = False
 
 _CODE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src", "Snake Game Code")
 if _CODE not in sys.path:
@@ -61,7 +63,7 @@ def _bfs_farthest(board, source):
 
 
 def pick_start_goal(board, rng):
-    # two-BFS trick: random seed -> farthest A -> farthest-from-A B
+    # two-BFS trick: random seed, farthest A, farthest-from-A B
     height = len(board)
     width = len(board[0])
     free = [(y, x) for y in range(height) for x in range(width) if not board[y][x]]
@@ -73,6 +75,7 @@ def pick_start_goal(board, rng):
     if first == second or dist == 0:
         return None
     (y0, x0), (y1, x1) = first, second
+    # print("pick", first, second, dist)
     return Point(x0, y0), Point(x1, y1)
 
 
@@ -122,10 +125,14 @@ def main():
             break
         else:
             skipped += 1
+            if DEBUG:
+                print("skipped trial", trial)
             continue
 
         for mode in MODES:
             ok, ms, expansions, plen = run_mode(board, start, goal, mode)
+            if DEBUG:
+                print(trial, mode, ms, expansions, plen)
             rows.append({
                 "trial": trial,
                 "width": args.width,
@@ -170,9 +177,6 @@ def main():
         lines.append(f"        expansions mean={statistics.mean(exp_list):.1f}  stdev={exp_stdev:.1f}")
     lines.append("")
     lines.append(f"CSV: {csv_path}")
-    lines.append("")
-    lines.append("How to cite in report: synthetic 4-connected grids, uniform random obstacles,")
-    lines.append(f"density p={args.density}, {args.width}x{args.height}, {args.trials} instances, seed {args.seed}.")
 
     report = "\n".join(lines)
     with open(txt_path, "w", encoding="utf-8") as f:

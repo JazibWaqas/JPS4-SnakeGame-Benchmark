@@ -344,7 +344,7 @@ class Snake:
         canvas.create_text(
             12, L["hud_y0"] + L["hud_px"] // 2,
             anchor="w",
-            text=f"Round {step}/3  —  {alg}   |   Score {self.score}",
+            text=f"Round {step}/3  -  {alg}   |   Score {self.score}",
             fill="#e8e8e8", font=("Segoe UI", fs),
         )
         canvas.update()
@@ -392,8 +392,8 @@ banana.config(menu=menubar)
 banana.bind("<F11>", toggle_fullscreen)
 banana.bind("<Escape>", exit_fullscreen)
 
-metrics_var = StringVar(value="Last search: —   |   Expansions: —   |   Route cells: —")
-results_var = StringVar(value="Dijkstra: —     A*: —     JPS4: —")
+metrics_var = StringVar(value="Last search: -   |   Expansions: -   |   Route cells: -")
+results_var = StringVar(value="Dijkstra: -     A*: -     JPS4: -")
 algo_btns = {}
 
 top_bar = Frame(banana, bg="#2b2b2b", padx=10, pady=8)
@@ -482,7 +482,7 @@ def refresh_algo_buttons():
 
 def sync_metrics():
     if main_snake is None or main_snake.pf_ms < 0:
-        metrics_var.set("Last search: —   |   Expansions: —   |   Route cells: —")
+        metrics_var.set("Last search: -   |   Expansions: -   |   Route cells: -")
         return
     m = main_snake
     metrics_var.set(
@@ -496,7 +496,7 @@ def sync_results_bar():
         label = ALGO_LABELS[mode]
         r = demo_results.get(mode)
         if r is None:
-            parts.append(f"{label}: —")
+            parts.append(f"{label}: -")
         else:
             parts.append(f"{label}: {r['ms']:.2f}ms  {r['exp']}exp  {r['steps']}cells")
     results_var.set("     ".join(parts))
@@ -574,7 +574,7 @@ def show_summary_or_restart(reason: str):
     fs_row = max(10, min(16, cw))
     fs_btn = max(10, min(14, cw))
 
-    title = "Results — Same Apple, Same Board" if reason == "done" else "Snake got stuck — partial results"
+    title = "Results - Same Apple, Same Board" if reason == "done" else "Snake got stuck - partial results"
     canvas.create_text(cx, cy - fs_title * 5, text=title,
                        font=("Segoe UI", fs_title, "bold"),
                        fill="#e8e8e8" if reason == "done" else "#cc4444",
@@ -593,9 +593,9 @@ def show_summary_or_restart(reason: str):
         row_y = header_y + (i + 1) * (fs_row + 10)
         color = ALGO_COLORS[mode]
         vals = [ALGO_LABELS[mode],
-                f"{r['ms']:.2f}" if r else "—",
-                str(r["exp"]) if r else "—",
-                str(r["steps"]) if r else "—"]
+                f"{r['ms']:.2f}" if r else "-",
+                str(r["exp"]) if r else "-",
+                str(r["steps"]) if r else "-"]
         for val, x in zip(vals, col_x):
             canvas.create_text(x, row_y, text=val,
                                font=("Consolas", fs_row), fill=color,
@@ -723,7 +723,7 @@ def on_difficulty_chosen(density: float):
     demo_round = 0
     demo_results = {}
     current_path_mode = DEMO_SEQUENCE[0]
-    results_var.set("Dijkstra: —     A*: —     JPS4: —")
+    results_var.set("Dijkstra: -     A*: -     JPS4: -")
 
     BOARD = np.array(make_board(density))
     board_copy = BOARD.copy()

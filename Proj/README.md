@@ -21,17 +21,17 @@ Assets load from the same directory as the script (`Assets/`), so running via th
 
 ## Controls
 
-- The window starts at a fraction of your screen size; you can **resize** or **maximize** it. The **20×20 grid** scales so it stays centered and as large as fits in the lower pane (HUD strip scales with window height). View → Toggle fullscreen, or **F11**; **Esc** leaves fullscreen.
+- The window starts at a fraction of your screen size; you can **resize** or **maximize** it. The **20x20 grid** scales so it stays centered and as large as fits in the lower pane (HUD strip scales with window height). View > Toggle fullscreen, or **F11**; **Esc** leaves fullscreen.
 - Easy / Hard: pick a map from the start screen.
 - Dijkstra, A*, JPS4: choose which algorithm drives the snake during play.
-- Compare 3 algos: pauses the game and runs all three on the **same** frozen snapshot (head, apple, body, walls). Draws three paths: red = Dijkstra, green = A*, blue = JPS4 (nested tints where they overlap). Metrics show per-algorithm time (ms), expansions, and route length.
+- Compare 3 algos: pauses the game and runs all three on the same frozen snapshot (head, apple, body, walls). Draws three paths: red = Dijkstra, green = A*, blue = JPS4 (nested tints where they overlap). Metrics show per-algorithm time (ms), expansions, and route length.
 - Resume play: clears the overlay and continues with the selected algorithm.
 
 ## Code layout
 
-- `Snake Game Code/snake_game_jps4.py` — Tkinter UI, game loop, compare mode.
-- `Snake Game Code/pathing_grid.py` — grid, Dijkstra/A*/JPS4, timings and expansion counts.
-- `Snake Game Code/helper.py` — `Point`, `AstarContext`, heap-based search.
+- `Snake Game Code/snake_game_jps4.py`: Tkinter UI, game loop, compare mode.
+- `Snake Game Code/pathing_grid.py`: grid, Dijkstra/A*/JPS4, timings and expansion counts.
+- `Snake Game Code/helper.py`: `Point`, `AstarContext`, heap-based search.
 
 ## Preliminary benchmark + report (interim)
 
