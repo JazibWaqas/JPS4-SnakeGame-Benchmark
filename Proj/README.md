@@ -21,11 +21,11 @@ Assets load from the same directory as the script (`Assets/`), so running via th
 
 ## Controls
 
-- The window starts at a fraction of your screen size; you can **resize** or **maximize** it. The **20x20 grid** scales so it stays centered and as large as fits in the lower pane (HUD strip scales with window height). View > Toggle fullscreen, or **F11**; **Esc** leaves fullscreen.
-- Easy / Hard: pick a map from the start screen.
-- Dijkstra, A*, JPS4: choose which algorithm drives the snake during play.
-- Compare 3 algos: pauses the game and runs all three on the same frozen snapshot (head, apple, body, walls). Draws three paths: red = Dijkstra, green = A*, blue = JPS4 (nested tints where they overlap). Metrics show per-algorithm time (ms), expansions, and route length.
-- Resume play: clears the overlay and continues with the selected algorithm.
+- The window starts at a fraction of your screen size; you can **resize** or **maximize** it. The **40x40 grid** scales so it stays centered and as large as fits in the lower pane (HUD strip scales with window height). View > Toggle fullscreen, or **F11**; **Esc** leaves fullscreen.
+- Choose a density preset from the start screen.
+- The demo runs the same frozen board through three rounds in order: `Dijkstra`, `A*`, then `JPS4`.
+- The HUD shows the last search time, expansions, and route length for the current move, plus the per-round summary for the same apple / same board comparison.
+- If food becomes unreachable in the live demo, the snake now tries to recover by following its tail and re-homing the food to a reachable cell instead of oscillating forever.
 
 ## Code layout
 
@@ -58,6 +58,21 @@ Smaller single-density run:
 ```text
 python benchmark_interim.py
 ```
+
+## Tests
+
+Run the automated checks from the repository root:
+
+```text
+python -m pytest Proj/tests -q
+```
+
+The test suite covers:
+
+- shortest-path agreement across `Dijkstra`, `A*`, and `JPS4`
+- expansion-order invariants on sampled random grids
+- reachable-food selection for the snake demo
+- recovery from the previously reproducible unreachable-food loop
 
 Build the PDF (needs LaTeX: MiKTeX / TeX Live, or upload `report/` to Overleaf):
 

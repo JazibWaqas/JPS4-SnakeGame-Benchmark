@@ -1,7 +1,7 @@
-from helper import Point, AstarContext
-from pathing_grid import PathingGrid
+from collections import deque
 
-from typing import Callable, List, Optional, Tuple
+from snake_ai import best_safe_move, choose_reachable_food, search_path
+
 from tkinter import *
 from random import choice
 import os
@@ -111,12 +111,6 @@ def compute_game_layout(cv) -> dict:
             "ox": ox, "oy": oy, "W": W, "H": H, "hud_y0": hud_y0}
 
 
-def update_pathing_grid(grid, board):
-    for row in range(board.shape[0]):
-        for col in range(board.shape[1]):
-            grid.set(col, row, board[row, col] in [WALL, BODY])
-
-
 class Snake:
     def __init__(self, board: np.ndarray, locations=None):
         self.locations = list(locations or default_location)
@@ -132,6 +126,8 @@ class Snake:
         self.route = None
         self.after_job = None
         self.game_paused = False
+        self.state_history = deque(maxlen=16)
+        self.remember_state()
 
     def play(self):
         winsound.PlaySound(f"{path_dir}Assets/roku_snake.wav", winsound.SND_LOOP + winsound.SND_ASYNC)
@@ -154,7 +150,16 @@ class Snake:
         movement = self.food_search()
         if movement is None:
             self.no_path_count += 1
-            movement = self.find_safest_move()
+            movement = self.tail_search()
+            if movement is not None and self.no_path_count >= 8:
+                if self.rehome_food():
+                    movement = self.food_search() or movement
+                    self.no_path_count = 0
+            if movement is None and self.no_path_count >= 6:
+                if self.rehome_food():
+                    movement = self.food_search()
+            if movement is None:
+                movement = self.find_safest_move()
             if movement is None:
                 if self.no_path_count >= 5:
                     self.game_over()
@@ -164,46 +169,67 @@ class Snake:
         else:
             self.no_path_count = 0
         self.change_positions(movement)
+        self.remember_state()
+        if self.no_path_count >= 8 and self.is_repeating_state() and self.rehome_food():
+            self.no_path_count = 0
         self.after_job = banana.after(200, self.schedule_next)
 
     def food_search(self):
-        head_loc = self.head()
-        tail_loc = self.tail()
+        if food is None:
+            self.route = None
+            return None
 
-        grid = PathingGrid(self.board.shape[1], self.board.shape[0], False)
-        temp_board = self.board.copy()
-        temp_board[tail_loc] = EMPTY
-        update_pathing_grid(grid, temp_board)
-
-        start = Point(head_loc[1], head_loc[0])
-        goal_pt = Point(food[1], food[0])
-        # print("searching", start, "->", goal_pt)
-        path = grid.get_path_single_goal(start, goal_pt, mode=current_path_mode)
-        self.pf_ms = grid.last_ms
-        self.pf_exp = grid.last_expansions
-        self.pf_steps = len(path) if path else 0
-        self.round_ms += grid.last_ms
-        self.round_exp += grid.last_expansions
-        if self.round_path == 0 and path:
-            self.round_path = len(path)
-        sync_metrics()
-
+        path = self.search_to(food, count_for_round_path=True)
         if not path or len(path) < 2:
             self.route = None
             return None
 
-        self.route = [(p.y, p.x) for p in path]
+        return self.path_to_direction(path)
 
-        next_pt = path[1]
-        new_pos = (next_pt.y, next_pt.x)
-
-        if (not 0 <= new_pos[0] < self.board.shape[0] or
-                not 0 <= new_pos[1] < self.board.shape[1] or
-                self.board[new_pos] not in [EMPTY, FOOD]):
+    def tail_search(self):
+        path = self.search_to(self.tail(), count_for_round_path=False)
+        if not path or len(path) < 2:
             self.route = None
             return None
+        return self.path_to_direction(path)
 
-        return self.get_direction(head_loc, new_pos)
+    def search_to(self, target_loc, count_for_round_path):
+        path, metrics = search_path(
+            self.board,
+            self.head(),
+            target_loc,
+            current_path_mode,
+            blocked_values=(WALL, BODY),
+            clear_cells=(self.tail(),),
+        )
+        self.record_search(metrics, path, count_for_round_path=count_for_round_path)
+
+        if not path or len(path) < 2:
+            return path
+
+        self.route = [(p.y, p.x) for p in path]
+        return path
+
+    def record_search(self, metrics, path, count_for_round_path):
+        self.pf_ms = metrics["ms"]
+        self.pf_exp = metrics["expansions"]
+        self.pf_steps = metrics["steps"]
+        self.round_ms += metrics["ms"]
+        self.round_exp += metrics["expansions"]
+        if count_for_round_path and self.round_path == 0 and path:
+            self.round_path = len(path)
+        sync_metrics()
+
+    def path_to_direction(self, path):
+        next_pt = path[1]
+        new_pos = (next_pt.y, next_pt.x)
+        tail_loc = self.tail()
+        if (not 0 <= new_pos[0] < self.board.shape[0] or
+                not 0 <= new_pos[1] < self.board.shape[1] or
+                (self.board[new_pos] not in [EMPTY, FOOD] and new_pos != tail_loc)):
+            self.route = None
+            return None
+        return self.get_direction(self.head(), new_pos)
 
     def get_direction(self, current_pos, next_pos):
         if next_pos[0] < current_pos[0]:
@@ -215,31 +241,10 @@ class Snake:
         return STEP_RIGHT
 
     def find_safest_move(self):
-        head_loc = self.head()
-        possible_moves = []
-        for d in [STEP_LEFT, STEP_RIGHT, STEP_UP, STEP_DOWN]:
-            new_loc = d(head_loc)
-            if (0 <= new_loc[0] < self.board.shape[0] and
-                    0 <= new_loc[1] < self.board.shape[1] and
-                    self.board[new_loc] in [EMPTY, FOOD]):
-                possible_moves.append(d)
-        if not possible_moves:
+        next_pos = best_safe_move(self.board, self.head(), self.tail(), empty_values=(EMPTY, FOOD))
+        if next_pos is None:
             return None
-        best_move, best_score = None, -1
-        for move in possible_moves:
-            new_head = move(head_loc)
-            count = 0
-            for d in [STEP_LEFT, STEP_RIGHT, STEP_UP, STEP_DOWN]:
-                fp = d(new_head)
-                if (0 <= fp[0] < self.board.shape[0] and
-                        0 <= fp[1] < self.board.shape[1] and
-                        fp != self.tail() and
-                        self.board[fp] in [EMPTY, FOOD]):
-                    count += 1
-            if count > best_score:
-                best_score = count
-                best_move = move
-        return best_move
+        return self.get_direction(self.head(), next_pos)
 
     def change_positions(self, direction):
         head_loc = self.head()
@@ -266,20 +271,15 @@ class Snake:
 
     def make_food(self):
         global food
-        free = [(r, c) for r in range(self.board.shape[0])
-                for c in range(self.board.shape[1]) if self.board[r, c] == EMPTY]
-        if not free:
-            food = None
-            return
-        head = self.head()
-        # Prefer cells at least 10 steps away; fall back to furthest available
-        far = [(abs(r - head[0]) + abs(c - head[1]), r, c) for r, c in free]
-        far.sort(reverse=True)
-        min_dist = 10
-        candidates = [(r, c) for d, r, c in far if d >= min_dist]
-        if not candidates:
-            candidates = [(far[0][1], far[0][2])]
-        food = choice(candidates)
+        food = choose_reachable_food(
+            self.board,
+            self.head(),
+            empty_value=EMPTY,
+            blocked_values=(WALL, BODY),
+            min_dist=10,
+            clear_cells=(self.tail(),),
+            chooser=choice,
+        )
 
     def alive(self):
         return len(self.possible_moves_list(self.head())) > 0
@@ -309,6 +309,23 @@ class Snake:
         if food is not None:
             self.board[food] = FOOD
         self.update_canvas()
+
+    def remember_state(self):
+        self.state_history.append((tuple(self.locations), food))
+
+    def is_repeating_state(self):
+        current = (tuple(self.locations), food)
+        return sum(1 for state in self.state_history if state == current) >= 3
+
+    def rehome_food(self):
+        global food
+        old_food = food
+        self.make_food()
+        if food is None or food == old_food:
+            return False
+        self.route = None
+        self.update_board()
+        return True
 
     def update_canvas(self):
         L = compute_game_layout(canvas)
