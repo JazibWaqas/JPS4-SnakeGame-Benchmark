@@ -1,0 +1,361 @@
+{
+  "stamp": "20260429_000313",
+  "results": {
+    "50x50": {
+      "grid": "50x50",
+      "densities": [
+        0.1,
+        0.15,
+        0.2,
+        0.25,
+        0.3,
+        0.35,
+        0.4
+      ],
+      "trials_per_density": 30,
+      "base_seed": 99,
+      "skipped_total": 0,
+      "per_density": {
+        "0.1": {
+          "dijkstra": {
+            "time_mean": 7.6384,
+            "time_std": 0.7966,
+            "exp_mean": 2247.47,
+            "exp_std": 19.74,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 7.1887,
+            "time_std": 0.7586,
+            "exp_mean": 1949.67,
+            "exp_std": 133.69,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 4.2023,
+            "time_std": 0.5737,
+            "exp_mean": 570.53,
+            "exp_std": 37.77,
+            "n": 30
+          }
+        },
+        "0.15": {
+          "dijkstra": {
+            "time_mean": 8.3702,
+            "time_std": 5.7941,
+            "exp_mean": 2121.57,
+            "exp_std": 18.85,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 6.1681,
+            "time_std": 1.5571,
+            "exp_mean": 1628.5,
+            "exp_std": 170.34,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 4.4259,
+            "time_std": 1.0448,
+            "exp_mean": 639.23,
+            "exp_std": 95.99,
+            "n": 30
+          }
+        },
+        "0.2": {
+          "dijkstra": {
+            "time_mean": 6.4777,
+            "time_std": 0.4293,
+            "exp_mean": 1997.17,
+            "exp_std": 17.72,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 4.8685,
+            "time_std": 0.9381,
+            "exp_mean": 1352.53,
+            "exp_std": 231.25,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 3.7364,
+            "time_std": 0.8421,
+            "exp_mean": 627.53,
+            "exp_std": 145.47,
+            "n": 30
+          }
+        },
+        "0.25": {
+          "dijkstra": {
+            "time_mean": 6.002,
+            "time_std": 0.5756,
+            "exp_mean": 1858.63,
+            "exp_std": 18.06,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 4.061,
+            "time_std": 1.0621,
+            "exp_mean": 1118.3,
+            "exp_std": 304.66,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 3.4435,
+            "time_std": 1.1577,
+            "exp_mean": 590.7,
+            "exp_std": 193.37,
+            "n": 30
+          }
+        },
+        "0.3": {
+          "dijkstra": {
+            "time_mean": 5.131,
+            "time_std": 1.1339,
+            "exp_mean": 1642.67,
+            "exp_std": 298.74,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 3.0478,
+            "time_std": 1.3779,
+            "exp_mean": 898.17,
+            "exp_std": 369.53,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 2.7898,
+            "time_std": 1.2354,
+            "exp_mean": 512.63,
+            "exp_std": 225.86,
+            "n": 30
+          }
+        },
+        "0.35": {
+          "dijkstra": {
+            "time_mean": 3.6966,
+            "time_std": 1.5168,
+            "exp_mean": 1241.7,
+            "exp_std": 489.59,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 2.7034,
+            "time_std": 1.3258,
+            "exp_mean": 823.47,
+            "exp_std": 395.34,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 2.7513,
+            "time_std": 1.7104,
+            "exp_mean": 497,
+            "exp_std": 241.32,
+            "n": 30
+          }
+        },
+        "0.4": {
+          "dijkstra": {
+            "time_mean": 1.8105,
+            "time_std": 1.3828,
+            "exp_mean": 624.33,
+            "exp_std": 461.15,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 1.4601,
+            "time_std": 1.1465,
+            "exp_mean": 463.53,
+            "exp_std": 349.66,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 1.5069,
+            "time_std": 1.175,
+            "exp_mean": 281.7,
+            "exp_std": 210.39,
+            "n": 30
+          }
+        }
+      }
+    },
+    "100x100": {
+      "grid": "100x100",
+      "densities": [
+        0.1,
+        0.15,
+        0.2,
+        0.25,
+        0.3,
+        0.35,
+        0.4
+      ],
+      "trials_per_density": 30,
+      "base_seed": 99,
+      "skipped_total": 0,
+      "per_density": {
+        "0.1": {
+          "dijkstra": {
+            "time_mean": 32.3843,
+            "time_std": 1.7002,
+            "exp_mean": 8987.8,
+            "exp_std": 31.89,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 30.7749,
+            "time_std": 1.9979,
+            "exp_mean": 7903.07,
+            "exp_std": 298.35,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 18.9025,
+            "time_std": 1.361,
+            "exp_mean": 2379.03,
+            "exp_std": 165.66,
+            "n": 30
+          }
+        },
+        "0.15": {
+          "dijkstra": {
+            "time_mean": 30.1153,
+            "time_std": 3.0908,
+            "exp_mean": 8490.4,
+            "exp_std": 36.65,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 24.7513,
+            "time_std": 1.6856,
+            "exp_mean": 6439.73,
+            "exp_std": 400.14,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 17.1308,
+            "time_std": 1.448,
+            "exp_mean": 2500.07,
+            "exp_std": 194.92,
+            "n": 30
+          }
+        },
+        "0.2": {
+          "dijkstra": {
+            "time_mean": 27.397,
+            "time_std": 1.6876,
+            "exp_mean": 7966.03,
+            "exp_std": 48.43,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 20.0667,
+            "time_std": 2.9844,
+            "exp_mean": 5334.47,
+            "exp_std": 723.4,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 15.9508,
+            "time_std": 2.9063,
+            "exp_mean": 2490.97,
+            "exp_std": 428.09,
+            "n": 30
+          }
+        },
+        "0.25": {
+          "dijkstra": {
+            "time_mean": 25.2926,
+            "time_std": 1.4681,
+            "exp_mean": 7434.07,
+            "exp_std": 46.87,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 14.2077,
+            "time_std": 4.0322,
+            "exp_mean": 3839.33,
+            "exp_std": 1066.51,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 12.3359,
+            "time_std": 3.8567,
+            "exp_mean": 2031.57,
+            "exp_std": 655.6,
+            "n": 30
+          }
+        },
+        "0.3": {
+          "dijkstra": {
+            "time_mean": 24.457,
+            "time_std": 7.5892,
+            "exp_mean": 6841.97,
+            "exp_std": 74.29,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 14.5755,
+            "time_std": 6.4637,
+            "exp_mean": 3881.2,
+            "exp_std": 1636.42,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 13.1413,
+            "time_std": 6.1424,
+            "exp_mean": 2286.27,
+            "exp_std": 1025.51,
+            "n": 30
+          }
+        },
+        "0.35": {
+          "dijkstra": {
+            "time_mean": 18.0578,
+            "time_std": 4.8718,
+            "exp_mean": 5605.67,
+            "exp_std": 1503.89,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 12.3526,
+            "time_std": 5.2353,
+            "exp_mean": 3493.8,
+            "exp_std": 1458.49,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 11.4106,
+            "time_std": 4.9634,
+            "exp_mean": 2103.4,
+            "exp_std": 887.96,
+            "n": 30
+          }
+        },
+        "0.4": {
+          "dijkstra": {
+            "time_mean": 7.8084,
+            "time_std": 6.9753,
+            "exp_mean": 2314.8,
+            "exp_std": 1840.16,
+            "n": 30
+          },
+          "astar": {
+            "time_mean": 6.3373,
+            "time_std": 5.4925,
+            "exp_mean": 1870.8,
+            "exp_std": 1603.94,
+            "n": 30
+          },
+          "jps4": {
+            "time_mean": 5.767,
+            "time_std": 4.9147,
+            "exp_mean": 1137.13,
+            "exp_std": 973.41,
+            "n": 30
+          }
+        }
+      }
+    }
+  }
+}
