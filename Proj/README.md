@@ -1,92 +1,95 @@
-# Grid pathfinding demo (Dijkstra, A*, JPS4)
+# Dijkstra / A* / JPS4 on 4-Connected Grids
 
-Course project: compare shortest-path algorithms on 4-connected grids. This folder holds the interactive Snake demo and pathfinding core.
+Course project for Algorithm Design & Analysis. We compare three optimal shortest-path algorithms on uniform-cost 4-connected grid maps and wrap them in an interactive Snake demo.
 
-## Run the game
+**Authors:** Jazib Waqas · Salman Adnan · Hunain Abbas
 
-From the repository root (or from this folder), with Python 3 and NumPy installed:
+---
 
-```text
-python "Proj/src/Snake Game Code/snake_game_jps4.py"
+## Repository Layout
+
+```
+Proj/
+  README.md
+  requirements.txt
+  docs/
+    ADA_Project_Report.pdf       # assignment rubric / template
+    LITERATURE_REVIEW.md         # notes on the four primary references
+  src/
+    algorithms/                  # pathfinding core (no game dependency)
+      pathing_grid.py            # Dijkstra, A*, JPS4 implementations
+      helper.py                  # Point, UnionFind, shared A* loop
+    game/                        # Snake demo
+      snake_game_jps4.py         # Tkinter game loop and UI
+      snake_ai.py                # food selection and recovery logic
+      Assets/                    # sounds and menu image
+  benchmark/
+    benchmark_utils.py           # shared grid/timing utilities
+    run_benchmark.py             # main benchmark runner
+    generate_figures.py          # figure generator (reads results/, writes report/figures/)
+  results/                       # benchmark output (CSV + JSON summary)
+  tests/                         # pytest test suite
+  report/
+    final_report.tex             # LaTeX source
+    final_report.pdf             # compiled 7-page report
+    figures/                     # figures embedded in the report
 ```
 
-Or:
+---
 
-```text
-cd "Proj/src/Snake Game Code"
-python snake_game_jps4.py
+## Run the Snake Demo
+
+```
+python src/game/snake_game_jps4.py
 ```
 
-Assets load from the same directory as the script (`Assets/`), so running via the path above keeps sounds and the menu image working.
+Three rounds play on the same frozen board, one per algorithm. The HUD shows search time, expansions, and path length for each move. Press **F11** for fullscreen, **Esc** to exit.
 
-## Controls
+## Install Dependencies
 
-- The window starts at a fraction of your screen size; you can **resize** or **maximize** it. The **40x40 grid** scales so it stays centered and as large as fits in the lower pane (HUD strip scales with window height). View > Toggle fullscreen, or **F11**; **Esc** leaves fullscreen.
-- Choose a density preset from the start screen.
-- The demo runs the same frozen board through three rounds in order: `Dijkstra`, `A*`, then `JPS4`.
-- The HUD shows the last search time, expansions, and route length for the current move, plus the per-round summary for the same apple / same board comparison.
-- If food becomes unreachable in the live demo, the snake now tries to recover by following its tail and re-homing the food to a reachable cell instead of oscillating forever.
-
-## Code layout
-
-- `Snake Game Code/snake_game_jps4.py`: Tkinter UI, game loop, compare mode.
-- `Snake Game Code/pathing_grid.py`: grid, Dijkstra/A*/JPS4, timings and expansion counts.
-- `Snake Game Code/helper.py`: `Point`, `AstarContext`, heap-based search.
-
-## Preliminary benchmark + report (interim)
-
-Install dependencies:
-
-```text
+```
 pip install -r requirements.txt
 ```
 
-Run the full preliminary suite (three densities, plots, LaTeX number file):
+## Run the Benchmark
 
-```text
-python run_preliminary_benchmark.py
+```
+python benchmark/run_benchmark.py
 ```
 
-This writes:
+Runs Dijkstra, A*, and JPS4 on 50x50 and 100x100 grids across 7 density levels (10%-40%), 30 trials per condition. Writes raw CSVs and an aggregated JSON summary to `results/`.
 
-- `results/preliminary_*.csv` and `results/preliminary_*.json`
-- `report/generated_numbers.tex` (table macros for the paper)
-- `report/figures/preliminary_expansions.png`, `preliminary_time_ms.png`
+## Regenerate Figures
 
-Smaller single-density run:
-
-```text
-python benchmark_interim.py
+```
+python benchmark/generate_figures.py
 ```
 
-## Tests
+Reads the latest `results/extended_summary_*.json` and writes 5 figures to `report/figures/`. Requires `matplotlib`.
 
-Run the automated checks from the repository root:
+## Compile the Report
 
-```text
-python -m pytest Proj/tests -q
 ```
-
-The test suite covers:
-
-- shortest-path agreement across `Dijkstra`, `A*`, and `JPS4`
-- expansion-order invariants on sampled random grids
-- reachable-food selection for the snake demo
-- recovery from the previously reproducible unreachable-food loop
-
-Build the PDF (needs LaTeX: MiKTeX / TeX Live, or upload `report/` to Overleaf):
-
-```text
 cd report
-pdflatex progress_report_acl.tex
+pdflatex final_report.tex
+pdflatex final_report.tex
 ```
 
-See `report/README.txt`.
+Two passes resolve cross-references. Requires MiKTeX or TeX Live. The compiled PDF is already at `report/final_report.pdf`.
 
-## Datasets / benchmarks
+## Run the Tests
 
-Grids are synthetic (random obstacles, controlled density). The game is for intuition; `run_preliminary_benchmark.py` produces the quantitative preliminary results used in `report/progress_report_acl.tex`.
+```
+python -m pytest tests -q
+```
+
+Covers path-length agreement across all three algorithms, expansion-order invariants, reachable food selection, and the snake's unreachable-food recovery. All 7 tests pass.
+
+---
 
 ## References
 
-See `Algos_Project_Proposal (3) (1).pdf` and `Refrence/` for papers (e.g. Baum 2025 on 4-connected JPS).
+1. Dijkstra (1959) — https://doi.org/10.1007/BF01386390
+2. Hart, Nilsson, Raphael (1968) — https://doi.org/10.1109/TSSC.1968.300136
+3. Harabor & Grastien (2011) — https://harabor.net/data/papers/harabor-grastien-aaai11.pdf
+4. Baum (2025) — https://arxiv.org/abs/2501.14816

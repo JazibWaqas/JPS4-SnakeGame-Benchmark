@@ -1,6 +1,9 @@
 import random
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "benchmark"))
 
-from benchmark_interim import grid_to_pg, make_grid, pick_start_goal
+from benchmark_utils import grid_to_pg, make_grid, pick_start_goal
 
 
 def run_modes(board, start, goal):
