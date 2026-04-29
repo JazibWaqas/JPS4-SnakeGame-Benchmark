@@ -52,6 +52,8 @@ pip install -r requirements.txt
 ```
 
 ## Run the Benchmark
+game 
+ python src/game/snake_game_jps4.py
 
 ```
 python benchmark/run_benchmark.py
