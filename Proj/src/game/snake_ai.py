@@ -34,6 +34,7 @@ def search_path(board, start_loc, goal_loc, mode, blocked_values, clear_cells=()
         "ms": grid.last_ms,
         "expansions": grid.last_expansions,
         "steps": len(path) if path else 0,
+        "explored": grid.last_explored,
     }
 
 

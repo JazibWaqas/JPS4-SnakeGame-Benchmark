@@ -73,19 +73,20 @@ class AstarContext:
         self.fringe = []
         self.parents = {}
         self.expansions = 0
+        self.last_expanded = []   # (x, y) of every node popped — used for demo visualisation
 
     def astar_jps(self, start, successors, heuristic, success):
         self.fringe.clear()
         self.parents.clear()
+        self.last_expanded.clear()
         self.expansions = 0
         self.parents[start] = (None, 0)
         heapq.heappush(self.fringe, SearchNode(heuristic(start), 0, start, None))
-        # print("astar starting at", start)
 
         while self.fringe:
             current = heapq.heappop(self.fringe)
             self.expansions += 1
-            # print("pop", current.node, "f=", current.estimated_cost)
+            self.last_expanded.append((current.node.x, current.node.y))
             if success(current.node):
                 path = []
                 node = current.node
@@ -99,5 +100,4 @@ class AstarContext:
                 if neighbor not in self.parents or self.parents[neighbor][1] > new_cost:
                     self.parents[neighbor] = (current.node, new_cost)
                     heapq.heappush(self.fringe, SearchNode(new_cost + heuristic(neighbor), new_cost, neighbor, current.node))
-        # print("no path found")
         return None

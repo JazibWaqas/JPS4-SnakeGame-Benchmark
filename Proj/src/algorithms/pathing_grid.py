@@ -18,6 +18,7 @@ class PathingGrid:
         self.last_ms = 0.0
         self.last_expansions = 0
         self.last_path_len = 0
+        self.last_explored = []   # list of (x, y) expanded — for demo visualisation
 
     def in_bounds(self, x, y):
         return 0 <= x < self.width and 0 <= y < self.height
@@ -167,6 +168,7 @@ class PathingGrid:
 
         self.last_ms = (time.perf_counter() - started) * 1000.0
         self.last_expansions = self.context.expansions
+        self.last_explored = list(self.context.last_expanded)
 
         if result is None:
             if mode == "jps4":

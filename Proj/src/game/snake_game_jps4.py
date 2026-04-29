@@ -132,6 +132,7 @@ class Snake:
         self.round_exp = 0      # accumulated expansions for this apple
         self.round_path = 0     # path length on first search of this apple (head→food)
         self.route = None
+        self.explored = []   # nodes expanded in the last search — for visualisation
         self.after_job = None
         self.game_paused = False
         self.state_history = deque(maxlen=16)
@@ -222,6 +223,7 @@ class Snake:
         self.pf_ms = metrics["ms"]
         self.pf_exp = metrics["expansions"]
         self.pf_steps = metrics["steps"]
+        self.explored = metrics.get("explored", [])
         self.round_ms += metrics["ms"]
         self.round_exp += metrics["expansions"]
         if count_for_round_path and self.round_path == 0 and path:
@@ -341,6 +343,7 @@ class Snake:
         ox, oy = L["ox"], L["oy"]
         canvas.delete("all")
 
+        # --- Layer 1: board tiles ---
         for col in range(self.board.shape[1]):
             for row in range(self.board.shape[0]):
                 x0 = ox + col * cw
@@ -348,8 +351,30 @@ class Snake:
                 canvas.create_rectangle(x0, y0, x0 + cw, y0 + cw,
                                         fill=COLORS[self.board[row, col]], outline="#3a3a3a")
 
+        algo_color = ALGO_COLORS[current_path_mode]
+
+        # --- Layer 2: faint search footprint (every node the algorithm examined) ---
+        # This is what makes the three algorithms look visually different:
+        # Dijkstra = huge blob, A* = focused cone, JPS4 = sparse jump points
+        if self.explored:
+            route_set = set(self.route) if self.route else set()
+            ins_exp = max(1, cw // 4)
+            for ex, ey in self.explored:   # stored as (x, y)
+                col, row = ex, ey
+                if not (0 <= row < self.board.shape[0] and 0 <= col < self.board.shape[1]):
+                    continue
+                if self.board[row, col] in (HEAD, BODY, FOOD, WALL):
+                    continue
+                if (row, col) in route_set:
+                    continue   # will be drawn brighter in next layer
+                canvas.create_rectangle(
+                    ox + col * cw + ins_exp, oy + row * cw + ins_exp,
+                    ox + (col + 1) * cw - ins_exp, oy + (row + 1) * cw - ins_exp,
+                    fill=algo_color, outline="", stipple="gray25",
+                )
+
+        # --- Layer 3: bright planned path (head → food) ---
         if self.route:
-            color = ALGO_COLORS[current_path_mode]
             ins = max(1, cw // 5)
             for row, col in self.route:
                 if not (0 <= row < self.board.shape[0] and 0 <= col < self.board.shape[1]):
@@ -359,7 +384,7 @@ class Snake:
                 canvas.create_rectangle(
                     ox + col * cw + ins, oy + row * cw + ins,
                     ox + (col + 1) * cw - ins, oy + (row + 1) * cw - ins,
-                    fill=color, outline="",
+                    fill=algo_color, outline="",
                 )
 
         alg = ALGO_LABELS[current_path_mode]
