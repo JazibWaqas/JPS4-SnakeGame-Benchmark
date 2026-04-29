@@ -139,7 +139,7 @@ class Snake:
         self.remember_state()
 
     def play(self):
-        winsound.PlaySound(f"{path_dir}Assets/roku_snake.wav", winsound.SND_LOOP + winsound.SND_ASYNC)
+        # winsound.PlaySound(f"{path_dir}Assets/roku_snake.wav", winsound.SND_LOOP + winsound.SND_ASYNC)
         self.schedule_next()
 
     def cancel_tick(self):
@@ -404,7 +404,8 @@ class Snake:
         self.cancel_tick()
         self.game_paused = True
         if play_sound:
-            winsound.PlaySound(f"{path_dir}Assets/price.wav", winsound.SND_ASYNC)
+            # winsound.PlaySound(f"{path_dir}Assets/price.wav", winsound.SND_ASYNC)
+            pass
         show_summary_or_restart("no_path")
 
 
