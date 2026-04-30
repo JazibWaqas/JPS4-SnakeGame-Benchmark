@@ -220,7 +220,7 @@ class Snake:
             self.no_path_count = 0
         
         # Schedule next tick
-        self.after_job = banana.after(200, self.schedule_next)
+        self.after_job = banana.after(75, self.schedule_next)
 
     # Try to find path from head to current food
     def food_search(self):
