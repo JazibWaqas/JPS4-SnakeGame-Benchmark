@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(python generate_presentation_charts.py)"
-    ]
-  }
-}
