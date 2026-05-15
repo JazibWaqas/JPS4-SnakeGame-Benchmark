@@ -1,42 +1,42 @@
 import time
 from helper import Point, UnionFind, AstarContext
 
-# Cost of moving one step on the grid
+# how much effort each step takes
 STEP_COST = 1
 
 
 class PathingGrid:
-    # Counter for when JPS4 falls back to regular search
+    # counter for when JPS4 has to fall back to the slow way
     _fallback_outer_hits = 0
 
     def __init__(self, width, height, default_value):
         self.width = width
         self.height = height
-        # 2D grid: False = empty, True = blocked
+        # False = empty, True = wall. simple as that.
         self.grid = [[default_value for _ in range(width)] for _ in range(height)]
-        # Union-Find for fast connectivity checks
+        # quick way to see if two points are even connected
         self.components = UnionFind(width * height)
-        self.components_dirty = True  # Need to rebuild when grid changes
-        # Heuristic scaling factor (usually 1.0)
+        self.components_dirty = True  # need to rebuild if we change the map
+        
         self.heuristic_factor = 1.0
-        # Shared A* search context
+        # search context we reuse to save memory
         self.context = AstarContext()
-        # Performance metrics from last search
+        
+        # storage for last run's stats (for the UI)
         self.last_ms = 0.0
         self.last_expansions = 0
         self.last_path_len = 0
-        # Nodes expanded in last search (for visualization)
         self.last_explored = []
 
-    # Check if coordinates are within grid bounds
+    # make sure we aren't clicking off the map
     def in_bounds(self, x, y):
         return 0 <= x < self.width and 0 <= y < self.height
 
-    # Get grid value at coordinates
+    # quick getter for grid values
     def get(self, x, y):
         return self.grid[y][x]
 
-    # Set grid value and mark components as dirty if changed
+    # update the map and mark the connectivity check as "stale"
     def set(self, x, y, blocked):
         if not self.in_bounds(x, y):
             return
@@ -45,11 +45,11 @@ class PathingGrid:
         if old != blocked:
             self.components_dirty = True
 
-    # Get 4-connected neighbors (up, right, down, left)
+    # just the 4 basic neighbors
     def neighborhood_points(self, point):
         return point.neumann_neighborhood()
 
-    # Get valid neighbors with movement cost
+    # get neighbors that aren't walls
     def neighborhood_points_and_cost(self, pos):
         result = []
         for neighbor in self.neighborhood_points(pos):
@@ -57,34 +57,34 @@ class PathingGrid:
                 result.append((neighbor, STEP_COST))
         return result
 
-    # Manhattan distance heuristic (admissible for 4-connected grids)
+    # distance guesser (manhattan style)
     def heuristic(self, first, second):
         return first.manhattan_distance(second) * STEP_COST
 
-    # Check if a position can be moved to (in bounds and not blocked)
+    # simple check: is this square walkable?
     def can_move_to(self, pos):
         return self.in_bounds(pos.x, pos.y) and not self.grid[pos.y][pos.x]
 
-    # JPS4: Prune neighbors that don't need to be explored
+    # JPS4: ignore directions that are obviously useless
     def jps_prune_neighbors(self, parent, node):
-        # At start node, explore all 4 directions
+        # if we're just starting out, check everywhere
         if parent is None:
             return [n for n in node.neumann_neighborhood() if self.can_move_to(n)]
 
         direction = parent.direction_to(node)
         pruned = []
 
-        # Horizontal movement: don't prune any neighbors
+        # horizontal movement is a bit trickier to prune
         if direction.x != 0:
             for neighbor in node.neumann_neighborhood():
                 if neighbor != parent and self.can_move_to(neighbor):
                     pruned.append(neighbor)
-        # Vertical movement: only keep forward and forced neighbors
+        # vertical: only keep forward and check for forced neighbors (corners)
         else:
             forward = Point(node.x, node.y + direction.y)
             if self.can_move_to(forward):
                 pruned.append(forward)
-            # Check for forced neighbors on left/right of obstacles
+            # check left and right for obstacles that create jump points
             for side in (-1, 1):
                 beside_parent = Point(parent.x + side, parent.y)
                 beside_node = Point(node.x + side, node.y)
@@ -93,38 +93,38 @@ class PathingGrid:
 
         return pruned
 
-    # JPS4: Jump along a direction until hitting goal, obstacle, or jump point
+    # JPS4 core: slide along a line until we hit something interesting
     def jps_jump(self, current, direction, goal):
         is_goal = goal if callable(goal) else (lambda point: point == goal)
         prev = current
         
         while True:
             step = Point(prev.x + direction.x, prev.y + direction.y)
-            # Hit obstacle: no path in this direction
+            # wall? dead end.
             if not self.can_move_to(step):
                 return None
-            # Reached goal: return goal position
+            # found it!
             if is_goal(step):
                 return step
-            # Horizontal jumps: stop immediately (no pruning for horizontal)
+            # horizontal: stop immediately (simple JPS4 rule)
             if direction.x != 0:
                 return step
-            # Vertical jumps: check for forced neighbors that create jump points
+            # vertical: check if we just passed a corner
             for side in (-1, 1):
                 beside_prev = Point(prev.x + side, prev.y)
                 beside_step = Point(step.x + side, step.y)
-                # Found forced neighbor: this is a jump point
+                # found a forced neighbor! mark this as a jump point
                 if not self.can_move_to(beside_prev) and self.can_move_to(beside_step):
                     return step
             prev = step
 
-    # JPS4: Find successor nodes by jumping from pruned neighbors
+    # find the next set of nodes JPS should care about
     def jps_successors(self, parent, node, goal):
-        # At goal: only goal itself as successor
+        # at the finish line?
         if goal(node):
             return [(node, 0)]
 
-        # Calculate immediate parent for direction finding
+        # find where we're coming from so we know which way is "forward"
         if parent is None or parent == node:
             immediate_parent = None
         else:
@@ -132,33 +132,31 @@ class PathingGrid:
             immediate_parent = Point(node.x - direction.x, node.y - direction.y)
 
         successors = []
-        # For each pruned neighbor, jump to find jump point
+        # check pruned neighbors and jump from each
         for neighbor in self.jps_prune_neighbors(immediate_parent, node):
             direction = node.direction_to(neighbor)
             found = self.jps_jump(node, direction, goal)
             if found is not None:
-                # Cost is Manhattan distance to jump point
                 cost = STEP_COST * node.manhattan_distance(found)
                 successors.append((found, cost))
 
         return successors
 
-    # Build Union-Find components for fast reachability checks
+    # build the component map for fast reachability checks
     def generate_components(self):
         self.components = UnionFind(self.width * self.height)
         self.components_dirty = False
         
-        # Connect all adjacent empty cells
+        # connect every empty cell to its neighbors
         for y in range(self.height):
             for x in range(self.width):
-                if not self.grid[y][x]:  # Empty cell
+                if not self.grid[y][x]:  
                     idx = y * self.width + x
-                    # Check 4 neighbors
                     for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
                         if 0 <= nx < self.width and 0 <= ny < self.height and not self.grid[ny][nx]:
                             self.components.union(idx, ny * self.width + nx)
 
-    # Check if two positions are in the same connected component
+    # quick check: is the food even reachable?
     def reachable(self, start, end):
         if not (self.in_bounds(start.x, start.y) and self.in_bounds(end.x, end.y)):
             return False
@@ -166,34 +164,35 @@ class PathingGrid:
             return False
         if self.components_dirty:
             self.generate_components()
+        # uses Union-Find to avoid expensive pathfinding on impossible maps
         return self.components.equiv(start.y * self.width + start.x,
                                      end.y * self.width + end.x)
 
-    # Main pathfinding interface - returns waypoints (not full path)
+    # main search logic - returns the key turning points
     def get_waypoints_single_goal(self, start, goal, mode="astar"):
-        # Reset performance metrics
+        # reset metrics for the new run
         self.last_ms = 0.0
         self.last_expansions = 0
         self.last_path_len = 0
 
-        # Adjacent cells: direct path without search
+        # if it's right next to us, don't bother searching
         if start.manhattan_distance(goal) == 1:
             self.last_path_len = 2
             return [start, goal]
 
-        # Quick reject if unreachable
+        # skip if Union-Find says it's impossible
         if not self.reachable(start, goal):
             return None
 
-        # Setup goal test and heuristics
+        # lambdas for the generic search loop
         goal_test = lambda point: point == goal
         heuristic = lambda point: int(self.heuristic(point, goal) * self.heuristic_factor)
         astar_successors = lambda parent, node: self.standard_astar_successors(node, goal_test)
-        zero_heuristic = lambda point: 0  # For Dijkstra
+        zero_heuristic = lambda point: 0  # Dijkstra doesn't guess
 
         started = time.perf_counter()
 
-        # Run selected algorithm
+        # fire off the requested algorithm
         if mode == "jps4":
             result = self.context.astar_jps(
                 start,
@@ -206,7 +205,7 @@ class PathingGrid:
         else:  # A*
             result = self.context.astar_jps(start, astar_successors, heuristic, goal_test)
 
-        # Record performance metrics
+        # save stats
         self.last_ms = (time.perf_counter() - started) * 1000.0
         self.last_expansions = self.context.expansions
         self.last_explored = list(self.context.last_expanded)
@@ -219,33 +218,31 @@ class PathingGrid:
         path, _cost = result
         return path
 
-    # Try to find direct straight-line path (no obstacles)
+    # check if we can just walk in a straight line
     def find_direct_path(self, start, goal):
         if start == goal:
             return [start]
         if start.manhattan_distance(goal) == 1:
             return [start, goal]
 
-        # Horizontal line: check all cells between start and goal
+        # horizontal straight line
         if start.y == goal.y:
             lo, hi = min(start.x, goal.x), max(start.x, goal.x)
             for x in range(lo, hi + 1):
                 if x != start.x and x != goal.x and self.grid[start.y][x]:
-                    return None  # Obstacle in the way
-            # Build path step by step
+                    return None
             path = []
             step = 1 if goal.x > start.x else -1
             for x in range(start.x, goal.x + step, step):
                 path.append(Point(x, start.y))
             return path
 
-        # Vertical line: check all cells between start and goal
+        # vertical straight line
         if start.x == goal.x:
             lo, hi = min(start.y, goal.y), max(start.y, goal.y)
             for y in range(lo, hi + 1):
                 if y != start.y and y != goal.y and self.grid[y][start.x]:
-                    return None  # Obstacle in the way
-            # Build path step by step
+                    return None
             path = []
             step = 1 if goal.y > start.y else -1
             for y in range(start.y, goal.y + step, step):
@@ -254,13 +251,13 @@ class PathingGrid:
 
         return None
 
-    # Standard A* successor function (for Dijkstra and A*)
+    # basic neighbor finder for A* and Dijkstra
     def standard_astar_successors(self, node, goal):
         if goal(node):
             return [(node, 0)]
         return [(neighbor, STEP_COST) for neighbor in self.neighborhood_points(node) if self.can_move_to(neighbor)]
 
-    # Get complete path (all intermediate cells) from waypoints
+    # get the full path (not just turning points)
     def get_path_single_goal(self, start, goal, mode="astar"):
         waypoints = self.get_waypoints_single_goal(start, goal, mode)
         if waypoints is None or len(waypoints) == 0:
@@ -271,7 +268,7 @@ class PathingGrid:
             return None
         return path
 
-    # Convert waypoints to full path by filling in intermediate cells
+    # fill in the squares between waypoints
     def waypoints_to_path(self, waypoints):
         if not waypoints:
             return []
@@ -279,7 +276,7 @@ class PathingGrid:
         for i in range(1, len(waypoints)):
             current = path[-1]
             target = waypoints[i]
-            # Move step by step toward target
+            # step by step to the next turning point
             while current.manhattan_distance(target) > 0:
                 direction = current.direction_to(target)
                 current = current + direction
@@ -288,15 +285,13 @@ class PathingGrid:
                     break
         return path
 
-    # Verify path is valid (connected, in bounds, not blocked)
+    # make sure the path doesn't walk through walls
     def validate_path(self, path):
         if not path or len(path) < 2:
             return True
         for i in range(len(path) - 1):
-            # Check consecutive cells are adjacent
             if path[i].manhattan_distance(path[i+1]) > 1:
                 return False
-            # Check cells are valid (in bounds and not blocked)
             for point in (path[i], path[i+1]):
                 if not self.in_bounds(point.x, point.y) or self.grid[point.y][point.x]:
                     return False
